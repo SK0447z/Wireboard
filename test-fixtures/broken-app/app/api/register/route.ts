@@ -15,6 +15,10 @@ const prisma = {
 export async function POST(req: Request) {
   const { email, password } = await req.json();
 
+  // ENV DRIFT (SUSPICIOUS WIRE):
+  // Reads process.env.JWT_SIGNING_KEY, but .env.example declares JWT_SECRET
+  const jwtSecret = process.env.JWT_SIGNING_KEY;
+
   // BUG #1 (SCHEMA_DRIFT - RED WIRE):
   // Prisma schema has subscription_tier (snake_case), but route passes subscriptionTier (camelCase)
   const user = await prisma.user.create({

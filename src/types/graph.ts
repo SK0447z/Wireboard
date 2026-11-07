@@ -25,6 +25,7 @@ export const DiagnosticCodeSchema = z.enum([
   "SWALLOWED_ERROR",
   "TYPE_CHEAT",
   "SCHEMA_DRIFT",
+  "ENV_DRIFT",
 ]);
 export type DiagnosticCode = z.infer<typeof DiagnosticCodeSchema>;
 

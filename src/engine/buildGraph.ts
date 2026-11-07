@@ -9,6 +9,7 @@ import {
   type GraphSummary,
 } from "../types/graph";
 import { parsePrismaSchema } from "./parsePrisma";
+import { parseEnvExample } from "./parseEnv";
 import { scanBackendRoutes } from "./scanBackend";
 import { scanFrontendComponents } from "./scanFrontend";
 
@@ -366,6 +367,62 @@ export function scanRepository(projectRoot: string): ArchitectureGraph {
         label: `supabase.${interaction.table}.${interaction.operation}`,
         issues: wireIssues,
       });
+    }
+  }
+
+  // 4. Environment Contract Drift (ENV_DRIFT)
+  const envResult = parseEnvExample(resolvedRoot);
+  if (envResult) {
+    const allEnvAccesses = [
+      ...(backendResult.envUsages || []),
+      ...(frontendResult.envUsages || []),
+    ];
+
+    for (const access of allEnvAccesses) {
+      if (access.key === "NODE_ENV") continue;
+
+      if (!envResult.keys.has(access.key)) {
+        const node = nodesMap.get(access.nodeId);
+        let targetWire =
+          wires.find((w) => w.sourceId === access.nodeId) ||
+          wires.find((w) => w.targetId === access.nodeId);
+
+        let wireId: string;
+        if (targetWire) {
+          wireId = targetWire.id;
+        } else {
+          wireId = `wire:${access.nodeId}->env`;
+          targetWire = {
+            id: wireId,
+            sourceId: access.nodeId,
+            targetId: access.nodeId,
+            status: "SUSPICIOUS",
+            label: "process.env",
+            issues: [],
+          };
+          wires.push(targetWire);
+        }
+
+        const issueId = `issue:env-drift-${access.nodeId}-${access.key}-${access.line}`;
+        const issue: DiagnosticIssue = {
+          id: issueId,
+          wireId,
+          severity: "SUSPICIOUS",
+          code: "ENV_DRIFT",
+          title: `Environment variable drift: ${access.key} not in .env.example`,
+          explanation: `${node?.label || access.nodeId} references process.env.${access.key}, which is not declared in .env.example.`,
+          sourceFile: access.filePath,
+          sourceLine: access.line,
+          targetFile: envResult.envPath,
+          targetLine: 1,
+          repairPrompt: `In ${access.filePath} (line ${access.line}), update process.env.${access.key} to match a declared variable in ${envResult.envPath} (such as ${Array.from(envResult.keys)[0] || "declared variable"}), or declare ${access.key} in ${envResult.envPath}.`,
+        };
+
+        targetWire.issues.push(issue);
+        if (targetWire.status !== "BROKEN") {
+          targetWire.status = "SUSPICIOUS";
+        }
+      }
     }
   }
 

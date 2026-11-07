@@ -30,10 +30,18 @@ export interface SupabaseInteraction {
   line: number;
 }
 
+export interface FrontendEnvAccess {
+  nodeId: string;
+  key: string;
+  line: number;
+  filePath: string;
+}
+
 export interface ScanFrontendResult {
   nodes: AnchorNode[];
   fetchCalls: FrontendFetchCall[];
   supabaseInteractions: SupabaseInteraction[];
+  envUsages: FrontendEnvAccess[];
 }
 
 function extractUrlFromNode(argNode: Node, sf: SourceFile): string {
@@ -309,6 +317,7 @@ export function scanFrontendComponents(
   const nodes: AnchorNode[] = [];
   const fetchCalls: FrontendFetchCall[] = [];
   const supabaseInteractions: SupabaseInteraction[] = [];
+  const envUsages: FrontendEnvAccess[] = [];
 
   for (const sf of frontendFiles) {
     const relPath = path.relative(normalizedRoot, sf.getFilePath()).replace(/\\/g, "/");
@@ -354,6 +363,25 @@ export function scanFrontendComponents(
     // Extract Supabase interactions from component file
     const sfSupabase = extractSupabaseInteractionsFromScope(sf, componentNodeId, relPath);
     supabaseInteractions.push(...sfSupabase);
+
+    // Extract process.env usages
+    const sfPropAccesses = sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
+    for (const pa of sfPropAccesses) {
+      const expr = pa.getExpression();
+      if (Node.isPropertyAccessExpression(expr)) {
+        if (expr.getExpression().getText() === "process" && expr.getName() === "env") {
+          const key = pa.getName();
+          if (key && key !== "NODE_ENV") {
+            envUsages.push({
+              nodeId: componentNodeId,
+              key,
+              line: pa.getStartLineNumber(),
+              filePath: relPath,
+            });
+          }
+        }
+      }
+    }
 
     // Find fetch calls
     const calls = sf.getDescendantsOfKind(SyntaxKind.CallExpression);
@@ -479,5 +507,5 @@ export function scanFrontendComponents(
     }
   }
 
-  return { nodes, fetchCalls, supabaseInteractions };
+  return { nodes, fetchCalls, supabaseInteractions, envUsages };
 }

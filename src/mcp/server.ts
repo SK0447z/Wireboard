@@ -1,5 +1,6 @@
 import { scanRepository } from "../engine/buildGraph";
 import { generateContractReport } from "../engine/generateReport";
+import { calculateBlastRadius } from "../engine/blastRadius";
 import type { DiagnosticIssue } from "../types/graph";
 
 export interface McpToolResult {
@@ -130,6 +131,47 @@ export async function handleMcpToolCall(
       }
     }
 
+    case "wireboard_blast_radius": {
+      try {
+        const targetNodeId =
+          typeof args.targetNodeId === "string" ? args.targetNodeId : "";
+        if (!targetNodeId) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: "targetNodeId is required for wireboard_blast_radius",
+              },
+            ],
+          };
+        }
+        const proposedChange =
+          typeof args.proposedChange === "string" ? args.proposedChange : undefined;
+        const graph = scanRepository(projectPath);
+        const result = calculateBlastRadius(graph, targetNodeId, proposedChange);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (err) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: `wireboard_blast_radius failed: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
+        };
+      }
+    }
+
     default:
       return {
         isError: true,
@@ -220,6 +262,32 @@ export function startMcpStdioServer() {
                           "Path to the repository root to scan (defaults to current working directory '.')",
                       },
                     },
+                  },
+                },
+                {
+                  name: "wireboard_blast_radius",
+                  description:
+                    "Calculates the blast radius of changing an integration node, listing all upstream and downstream affected components, routes, database tables, and generating an atomic execution plan.",
+                  inputSchema: {
+                    type: "object",
+                    properties: {
+                      projectPath: {
+                        type: "string",
+                        description:
+                          "Path to the repository root to scan (defaults to current working directory '.')",
+                      },
+                      targetNodeId: {
+                        type: "string",
+                        description:
+                          "ID of the target node to analyze blast radius for (e.g. 'api:POST:/api/register')",
+                      },
+                      proposedChange: {
+                        type: "string",
+                        description:
+                          "Optional description of the proposed contract change",
+                      },
+                    },
+                    required: ["targetNodeId"],
                   },
                 },
               ],

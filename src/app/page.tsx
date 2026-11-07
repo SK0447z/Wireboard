@@ -27,6 +27,7 @@ import { AnchorNodeCard } from "@/components/AnchorNodeCard";
 import { InspectorDrawer } from "@/components/InspectorDrawer";
 import { layoutGraph, type AnchorNodeData, type ContractEdgeData } from "@/lib/layoutGraph";
 import { generateContractReport } from "@/engine/generateReport";
+import { calculateBlastRadius } from "@/engine/blastRadius";
 import type {
   ArchitectureGraph,
   AnchorNode,
@@ -105,15 +106,40 @@ export default function WireboardPage() {
     runScan(presetPath);
   };
 
-  // Node Click
+  // Node Click (Triggers Blast Radius Highlighting)
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       const anchorNode = (node.data as unknown as AnchorNodeData)?.node;
-      setSelectedNode(anchorNode || null);
+      if (!anchorNode) return;
+      setSelectedNode(anchorNode);
       setSelectedWire(null);
       setSelectedIssue(null);
+
+      if (graph) {
+        const blast = calculateBlastRadius(graph, anchorNode.id);
+        setNodes((nds) =>
+          nds.map((n) => {
+            const isTarget = n.id === anchorNode.id;
+            const isBlast = blast.affectedNodeIds.includes(n.id) && !isTarget;
+            return {
+              ...n,
+              selected: isTarget,
+              data: {
+                ...n.data,
+                isBlastRadius: isBlast,
+              },
+            };
+          })
+        );
+        setEdges((eds) =>
+          eds.map((e) => ({
+            ...e,
+            selected: blast.affectedWires.includes(e.id),
+          }))
+        );
+      }
     },
-    []
+    [graph, setNodes, setEdges]
   );
 
   // Edge Click
@@ -128,9 +154,22 @@ export default function WireboardPage() {
         } else {
           setSelectedIssue(null);
         }
+        setEdges((eds) =>
+          eds.map((e) => ({ ...e, selected: e.id === wire.id }))
+        );
+        setNodes((nds) =>
+          nds.map((n) => ({
+            ...n,
+            selected: n.id === wire.sourceId || n.id === wire.targetId,
+            data: {
+              ...n.data,
+              isBlastRadius: false,
+            },
+          }))
+        );
       }
     },
-    []
+    [setEdges, setNodes]
   );
 
   // Canvas pane click -> deselect
@@ -139,7 +178,16 @@ export default function WireboardPage() {
     setSelectedWire(null);
     setSelectedIssue(null);
     setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
-    setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+    setNodes((nds) =>
+      nds.map((n) => ({
+        ...n,
+        selected: false,
+        data: {
+          ...n.data,
+          isBlastRadius: false,
+        },
+      }))
+    );
   }, [setEdges, setNodes]);
 
   // Select Issue from Drawer or diagnostics
@@ -159,6 +207,10 @@ export default function WireboardPage() {
             ...n,
             selected:
               n.id === matchingWire.sourceId || n.id === matchingWire.targetId,
+            data: {
+              ...n.data,
+              isBlastRadius: false,
+            },
           }))
         );
       }
@@ -172,7 +224,16 @@ export default function WireboardPage() {
     setSelectedWire(null);
     setSelectedIssue(null);
     setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
-    setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+    setNodes((nds) =>
+      nds.map((n) => ({
+        ...n,
+        selected: false,
+        data: {
+          ...n.data,
+          isBlastRadius: false,
+        },
+      }))
+    );
   }, [setEdges, setNodes]);
 
   // Calculate Contract Integrity Score and report

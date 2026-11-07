@@ -15,16 +15,45 @@ export interface BackendSwallowedError {
   status: number;
 }
 
+export interface BackendEnvAccess {
+  key: string;
+  line: number;
+}
+
 export interface BackendRouteInfo {
   node: AnchorNode;
   dbInteractions: BackendDbInteraction[];
   swallowedErrors: BackendSwallowedError[];
   supabaseInteractions: SupabaseInteraction[];
+  envUsages: BackendEnvAccess[];
 }
 
 export interface ScanBackendResult {
   nodes: AnchorNode[];
   routes: BackendRouteInfo[];
+  envUsages: Array<{ nodeId: string; key: string; line: number; filePath: string }>;
+}
+
+function extractEnvUsagesFromNode(node: Node): BackendEnvAccess[] {
+  const envUsages: BackendEnvAccess[] = [];
+  const propAccesses = node.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
+
+  for (const pa of propAccesses) {
+    const expr = pa.getExpression();
+    if (Node.isPropertyAccessExpression(expr)) {
+      if (expr.getExpression().getText() === "process" && expr.getName() === "env") {
+        const key = pa.getName();
+        if (key && key !== "NODE_ENV") {
+          envUsages.push({
+            key,
+            line: pa.getStartLineNumber(),
+          });
+        }
+      }
+    }
+  }
+
+  return envUsages;
 }
 
 const HTTP_METHODS: readonly HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
@@ -185,6 +214,7 @@ export function scanBackendRoutes(
 
   const nodes: AnchorNode[] = [];
   const routes: BackendRouteInfo[] = [];
+  const allEnvUsages: Array<{ nodeId: string; key: string; line: number; filePath: string }> = [];
 
   for (const sf of routeFiles) {
     const relPath = path.relative(normalizedRoot, sf.getFilePath()).replace(/\\/g, "/");
@@ -393,6 +423,16 @@ export function scanBackendRoutes(
         }
       }
 
+      const envUsages = body ? extractEnvUsagesFromNode(body) : [];
+      for (const env of envUsages) {
+        allEnvUsages.push({
+          nodeId,
+          key: env.key,
+          line: env.line,
+          filePath: relPath,
+        });
+      }
+
       const node: AnchorNode = {
         id: nodeId,
         kind: "BACKEND_ROUTE",
@@ -411,9 +451,10 @@ export function scanBackendRoutes(
         dbInteractions,
         swallowedErrors,
         supabaseInteractions,
+        envUsages,
       });
     }
   }
 
-  return { nodes, routes };
+  return { nodes, routes, envUsages: allEnvUsages };
 }

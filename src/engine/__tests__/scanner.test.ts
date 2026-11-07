@@ -21,6 +21,15 @@ describe("scanRepository Integration Test", () => {
     expect(codes).toContain("TYPE_CHEAT");
     expect(codes).toContain("SWALLOWED_ERROR");
     expect(codes).toContain("MISSING_ENDPOINT");
+    expect(codes).toContain("ENV_DRIFT");
+
+    // Bug 6: ENV_DRIFT on JWT_SIGNING_KEY vs JWT_SECRET
+    const envDriftIssue = graph.issues.find((i) => i.code === "ENV_DRIFT");
+    expect(envDriftIssue).toBeDefined();
+    expect(envDriftIssue?.severity).toBe("SUSPICIOUS");
+    expect(envDriftIssue?.explanation).toContain("JWT_SIGNING_KEY");
+    expect(envDriftIssue?.sourceFile).toContain("app/api/register/route.ts");
+    expect(envDriftIssue?.targetFile).toBe(".env.example");
 
     // Bug 1: SCHEMA_DRIFT on subscriptionTier
     const schemaDriftIssue = graph.issues.find((i) => i.code === "SCHEMA_DRIFT");

@@ -185,6 +185,30 @@ describe("handleMcpToolCall", () => {
     expect(parsed.issues[0].repairPrompt).toBeDefined();
   });
 
+  it("handles wireboard_blast_radius tool", async () => {
+    const result = await handleMcpToolCall("wireboard_blast_radius", {
+      projectPath: "test-fixtures/broken-app",
+      targetNodeId: "api:POST:/api/register",
+      proposedChange: "rename user_id -> id",
+    });
+    expect(result.isError).toBeFalsy();
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.targetNodeId).toBe("api:POST:/api/register");
+    expect(parsed.proposedChange).toBe("rename user_id -> id");
+    expect(Array.isArray(parsed.affectedNodeIds)).toBe(true);
+    expect(parsed.affectedNodeIds).toContain("db:User");
+    expect(Array.isArray(parsed.affectedFiles)).toBe(true);
+    expect(parsed.atomicExecutionPrompt).toContain("ATOMIC CONTRACT SYNCHRONIZATION PLAN");
+  });
+
+  it("returns error on wireboard_blast_radius if targetNodeId is missing", async () => {
+    const result = await handleMcpToolCall("wireboard_blast_radius", {
+      projectPath: "test-fixtures/broken-app",
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("targetNodeId is required");
+  });
+
   it("returns error on unknown tool", async () => {
     const result = await handleMcpToolCall("unknown_tool", {});
     expect(result.isError).toBe(true);

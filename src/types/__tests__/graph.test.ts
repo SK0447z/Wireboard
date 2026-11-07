@@ -226,6 +226,22 @@ describe("ArchitectureGraph Schema", () => {
         repairPrompt: "Fix",
       })
     ).toThrow();
+
+    expect(() =>
+      DiagnosticIssueSchema.parse({
+        id: "issue:env-drift",
+        wireId: "w1",
+        severity: "SUSPICIOUS",
+        code: "ENV_DRIFT",
+        title: "Env drift",
+        explanation: "Missing in .env.example",
+        sourceFile: "app/api/register/route.ts",
+        sourceLine: 10,
+        targetFile: ".env.example",
+        targetLine: 1,
+        repairPrompt: "Declare variable in .env.example",
+      })
+    ).not.toThrow();
   });
 });
 

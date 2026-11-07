@@ -12,6 +12,7 @@ export interface AnchorNodeData {
   status: WireStatus;
   connectedWireIds: string[];
   issuesCount: number;
+  isBlastRadius?: boolean;
   [key: string]: unknown;
 }
 

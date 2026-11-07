@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Copy,
   Check,
@@ -10,6 +10,9 @@ import {
   ArrowRight,
   X,
   Terminal,
+  Zap,
+  Play,
+  Radio,
 } from "lucide-react";
 import type {
   ArchitectureGraph,
@@ -17,6 +20,7 @@ import type {
   ContractWire,
   DiagnosticIssue,
 } from "@/types/graph";
+import { calculateBlastRadius } from "@/engine/blastRadius";
 
 interface InspectorDrawerProps {
   graph: ArchitectureGraph;
@@ -27,6 +31,164 @@ interface InspectorDrawerProps {
   onSelectWire: (wire: ContractWire | null) => void;
   onSelectNode: (node: AnchorNode | null) => void;
   onClearSelection: () => void;
+}
+
+interface WireReplayProps {
+  initialUrl: string;
+  initialMethod: string;
+  initialBody?: Record<string, string>;
+}
+
+function WireReplay({ initialUrl, initialMethod, initialBody }: WireReplayProps) {
+  const [url, setUrl] = useState(initialUrl);
+  const [method, setMethod] = useState(initialMethod);
+  const [bodyText, setBodyText] = useState(
+    initialBody ? JSON.stringify(initialBody, null, 2) : "{\n  \n}"
+  );
+  const [loading, setLoading] = useState(false);
+  const [replayResult, setReplayResult] = useState<{
+    status: number;
+    statusText: string;
+    durationMs: number;
+    data: unknown;
+    error?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    setUrl(initialUrl);
+    setMethod(initialMethod);
+    if (initialBody) {
+      setBodyText(JSON.stringify(initialBody, null, 2));
+    }
+  }, [initialUrl, initialMethod, initialBody]);
+
+  const handleSend = async () => {
+    setLoading(true);
+    try {
+      let parsedBody: unknown = undefined;
+      if (method !== "GET" && method !== "HEAD" && bodyText.trim()) {
+        try {
+          parsedBody = JSON.parse(bodyText);
+        } catch {
+          parsedBody = bodyText;
+        }
+      }
+
+      const res = await fetch("/api/replay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url,
+          method,
+          body: parsedBody,
+        }),
+      });
+
+      const data = await res.json();
+      setReplayResult(data);
+    } catch (err) {
+      setReplayResult({
+        status: 502,
+        statusText: "Connection Error",
+        durationMs: 0,
+        data: null,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2 pt-3 border-t border-zinc-800">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Zap className="w-3.5 h-3.5 text-amber-400 stroke-[1.75]" />
+          <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-300 font-semibold">
+            ⚡ Replay Wire
+          </span>
+        </div>
+        <span className="font-mono text-[10px] text-zinc-500 uppercase">Live HTTP Probe</span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <select
+          value={method}
+          onChange={(e) => setMethod(e.target.value)}
+          className="bg-[#111115] border border-zinc-800 text-xs font-mono text-zinc-200 px-2 py-1.5 rounded focus:outline-none focus:border-zinc-700 shrink-0"
+        >
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="PATCH">PATCH</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="/api/..."
+          className="flex-1 min-w-0 bg-[#111115] border border-zinc-800 text-xs font-mono text-zinc-200 px-2 py-1.5 rounded focus:outline-none focus:border-zinc-700"
+        />
+      </div>
+
+      {method !== "GET" && (
+        <div className="space-y-1">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+            Payload Body (JSON)
+          </div>
+          <textarea
+            rows={3}
+            value={bodyText}
+            onChange={(e) => setBodyText(e.target.value)}
+            className="w-full bg-[#09090b] border border-zinc-800 text-xs font-mono text-zinc-200 p-2 rounded focus:outline-none focus:border-zinc-700 resize-y"
+          />
+        </div>
+      )}
+
+      <button
+        onClick={handleSend}
+        disabled={loading}
+        className="w-full py-1.5 px-3 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-xs font-mono font-medium text-zinc-100 border border-zinc-700 transition-colors flex items-center justify-center gap-1.5"
+      >
+        <Play className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+        <span>{loading ? "Probing Wire..." : "Send Request (Replay Wire)"}</span>
+      </button>
+
+      {replayResult && (
+        <div className="p-2.5 rounded bg-[#09090b] border border-zinc-800/80 space-y-2 text-xs font-mono">
+          <div className="flex items-center justify-between">
+            <span
+              className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                replayResult.status >= 200 && replayResult.status < 300
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                  : replayResult.status >= 400 && replayResult.status < 500
+                  ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                  : "bg-rose-500/10 text-rose-400 border-rose-500/30"
+              }`}
+            >
+              {replayResult.status} {replayResult.statusText}
+            </span>
+            <span className="text-[11px] text-zinc-400 tabular-nums font-mono">
+              {replayResult.durationMs}ms
+            </span>
+          </div>
+
+          {replayResult.error && (
+            <div className="text-rose-400 text-xs">{replayResult.error}</div>
+          )}
+
+          {replayResult.data !== undefined && replayResult.data !== null && (
+            <pre className="max-h-36 overflow-y-auto p-2 rounded bg-[#111115] border border-zinc-800/60 text-[11px] text-zinc-300 whitespace-pre-wrap break-all">
+              {typeof replayResult.data === "object"
+                ? JSON.stringify(replayResult.data, null, 2)
+                : String(replayResult.data)}
+            </pre>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function InspectorDrawer({
@@ -40,11 +202,19 @@ export function InspectorDrawer({
   onClearSelection,
 }: InspectorDrawerProps) {
   const [copied, setCopied] = useState(false);
+  const [copiedPlan, setCopiedPlan] = useState(false);
+  const [proposedChange, setProposedChange] = useState("");
 
   const handleCopyPrompt = (promptText: string) => {
     navigator.clipboard.writeText(promptText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyPlan = (planText: string) => {
+    navigator.clipboard.writeText(planText);
+    setCopiedPlan(true);
+    setTimeout(() => setCopiedPlan(false), 2000);
   };
 
   // If a specific issue is selected, or if a broken/suspicious wire with issues is selected:
@@ -64,6 +234,38 @@ export function InspectorDrawer({
   const brokenCount = graph.issues.filter((i) => i.severity === "BROKEN").length;
   const suspiciousCount = graph.issues.filter((i) => i.severity === "SUSPICIOUS").length;
 
+  // Calculate blast radius for selectedNode
+  const blastRadius = useMemo(() => {
+    if (!selectedNode) return null;
+    return calculateBlastRadius(graph, selectedNode.id, proposedChange);
+  }, [graph, selectedNode, proposedChange]);
+
+  // Find target backend route for Wire Replay if activeIssue or selectedWire
+  const activeWireBackendRoute = useMemo(() => {
+    if (selectedWire) {
+      return (
+        graph.nodes.find(
+          (n) =>
+            (n.id === selectedWire.targetId || n.id === selectedWire.sourceId) &&
+            n.kind === "BACKEND_ROUTE"
+        ) || null
+      );
+    }
+    if (activeIssue?.wireId) {
+      const wire = graph.wires.find((w) => w.id === activeIssue.wireId);
+      if (wire) {
+        return (
+          graph.nodes.find(
+            (n) =>
+              (n.id === wire.targetId || n.id === wire.sourceId) &&
+              n.kind === "BACKEND_ROUTE"
+          ) || null
+        );
+      }
+    }
+    return null;
+  }, [graph, selectedWire, activeIssue]);
+
   return (
     <aside className="w-[420px] h-full border-l border-white/10 bg-[#0d0d10] text-zinc-100 flex flex-col flex-shrink-0 z-20">
       {/* Drawer Header */}
@@ -76,7 +278,7 @@ export function InspectorDrawer({
               : selectedWire
               ? "Wire Inspector"
               : selectedNode
-              ? "Node Inspector"
+              ? "Node & Blast Radius Mode"
               : "Diagnostics"}
           </span>
         </div>
@@ -255,6 +457,15 @@ export function InspectorDrawer({
                 {activeIssue.repairPrompt}
               </div>
             </div>
+
+            {/* Wire Replay if connected to backend route */}
+            {activeWireBackendRoute && (
+              <WireReplay
+                initialUrl={activeWireBackendRoute.routePath || "/api"}
+                initialMethod={activeWireBackendRoute.httpMethod || "POST"}
+                initialBody={activeWireBackendRoute.expectsPayload}
+              />
+            )}
           </div>
         )}
 
@@ -307,12 +518,22 @@ export function InspectorDrawer({
                 </button>
               </div>
             </div>
+
+            {/* Wire Replay if connected to backend route */}
+            {activeWireBackendRoute && (
+              <WireReplay
+                initialUrl={activeWireBackendRoute.routePath || "/api"}
+                initialMethod={activeWireBackendRoute.httpMethod || "POST"}
+                initialBody={activeWireBackendRoute.expectsPayload}
+              />
+            )}
           </div>
         )}
 
-        {/* CASE 3: Node Selected */}
-        {!activeIssue && !selectedWire && selectedNode && (
+        {/* CASE 3: Node Selected (Node & Blast Radius Mode) */}
+        {!activeIssue && !selectedWire && selectedNode && blastRadius && (
           <div className="space-y-4">
+            {/* Header badges */}
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
                 {selectedNode.kind}
@@ -355,7 +576,7 @@ export function InspectorDrawer({
                         {w.label || w.id}
                       </span>
                       <span
-                        className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${
+                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
                           w.status === "BROKEN"
                             ? "text-rose-400 bg-rose-500/10 border-rose-500/30"
                             : w.status === "SUSPICIOUS"
@@ -401,6 +622,92 @@ export function InspectorDrawer({
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* BLAST RADIUS SECTION */}
+            <div className="space-y-2.5 pt-3 border-t border-zinc-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Radio className="w-3.5 h-3.5 text-rose-400 stroke-[1.75]" />
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-300 font-semibold">
+                    Blast Radius Impact List
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] text-zinc-400 tabular-nums">
+                  {blastRadius.affectedFiles.length} affected files
+                </span>
+              </div>
+
+              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                Upstream and downstream components, routes, and schemas that will break if this node&apos;s contract changes:
+              </p>
+
+              <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
+                {blastRadius.affectedFiles.map((file, idx) => (
+                  <div
+                    key={`${file.filePath}:${file.line}-${idx}`}
+                    className="p-2 rounded bg-[#111115] border border-zinc-800/80 text-xs font-mono flex items-center justify-between gap-2"
+                  >
+                    <div className="truncate">
+                      <span className="text-zinc-200">
+                        {file.filePath.split("/").slice(-2).join("/")}
+                      </span>
+                      <span className="text-zinc-500 tabular-nums">:{file.line}</span>
+                      <span className="text-zinc-400 text-[10px] ml-1.5 truncate">
+                        ({file.nodeLabel})
+                      </span>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700/60 shrink-0 font-medium">
+                      {file.role}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Proposed field change input */}
+              <div className="space-y-1 pt-1">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+                  Proposed Field Change
+                </div>
+                <input
+                  type="text"
+                  value={proposedChange}
+                  onChange={(e) => setProposedChange(e.target.value)}
+                  placeholder="e.g. rename user_id -> id"
+                  className="w-full px-2.5 py-1.5 rounded bg-[#09090b] border border-zinc-800 text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700"
+                />
+              </div>
+
+              {/* Copy Atomic Execution Plan button */}
+              <button
+                onClick={() => handleCopyPlan(blastRadius.atomicExecutionPrompt)}
+                className={`w-full py-2 px-3 rounded text-xs font-mono font-medium border transition-colors flex items-center justify-center gap-2 ${
+                  copiedPlan
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                    : "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border-zinc-700"
+                }`}
+              >
+                {copiedPlan ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 stroke-[1.5]" />
+                    <span>Copied Atomic Execution Plan</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 stroke-[1.5]" />
+                    <span>Copy Atomic Execution Plan</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* LIVE WIRE REPLAY SECTION (if Backend Route) */}
+            {selectedNode.kind === "BACKEND_ROUTE" && (
+              <WireReplay
+                initialUrl={selectedNode.routePath || "/api"}
+                initialMethod={selectedNode.httpMethod || "POST"}
+                initialBody={selectedNode.expectsPayload}
+              />
             )}
           </div>
         )}

@@ -37,7 +37,12 @@ export const AnchorNodeCard = memo(function AnchorNodeCard({
       ? "border-amber-500/70 shadow-[0_0_12px_rgba(245,158,11,0.12)]"
       : "border-zinc-800 hover:border-zinc-700";
 
-  const selectedClass = selected ? "ring-1 ring-zinc-300" : "";
+  const isBlast = data.isBlastRadius;
+  const selectedClass = selected
+    ? "ring-2 ring-zinc-200 shadow-[0_0_14px_rgba(255,255,255,0.12)]"
+    : isBlast
+    ? "ring-1 ring-amber-400/80 bg-[#141419]"
+    : "";
 
   return (
     <div
