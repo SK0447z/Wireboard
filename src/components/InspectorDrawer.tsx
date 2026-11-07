@@ -1,17 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import {
-  Copy,
-  Check,
-  AlertCircle,
-  AlertTriangle,
-  CheckCircle2,
-  ArrowRight,
-  X,
-  Terminal,
-  Radio,
-} from "lucide-react";
+import { Copy, Check, X, Terminal } from "lucide-react";
 import type {
   ArchitectureGraph,
   AnchorNode,
@@ -59,14 +49,12 @@ export function InspectorDrawer({
     setTimeout(() => setCopiedPlan(false), 2000);
   };
 
-  // If a specific issue is selected, or if a broken/suspicious wire with issues is selected:
   const activeIssue =
     selectedIssue ||
     (selectedWire && selectedWire.issues.length > 0
       ? selectedWire.issues[0]
       : null);
 
-  // Sort all issues: BROKEN first, then SUSPICIOUS
   const sortedIssues = useMemo(() => {
     return [...graph.issues].sort((a, b) => {
       if (a.severity === "BROKEN" && b.severity !== "BROKEN") return -1;
@@ -78,13 +66,11 @@ export function InspectorDrawer({
   const brokenCount = graph.issues.filter((i) => i.severity === "BROKEN").length;
   const suspiciousCount = graph.issues.filter((i) => i.severity === "SUSPICIOUS").length;
 
-  // Calculate blast radius for selectedNode
   const blastRadius = useMemo(() => {
     if (!selectedNode) return null;
     return calculateBlastRadius(graph, selectedNode.id, proposedChange);
   }, [graph, selectedNode, proposedChange]);
 
-  // Determine node health status
   const nodeStatus = useMemo(() => {
     if (!selectedNode) return "VERIFIED";
     const connectedWires = graph.wires.filter(
@@ -96,18 +82,18 @@ export function InspectorDrawer({
   }, [graph.wires, selectedNode]);
 
   return (
-    <aside className="w-[420px] h-full border-l border-white/10 bg-[#0d0d10] text-zinc-100 flex flex-col flex-shrink-0 z-20">
+    <aside className="w-[420px] h-full border-l border-white/[0.07] bg-[#0c0c0e] text-zinc-100 flex flex-col flex-shrink-0 z-20">
       {/* Drawer Header */}
-      <div className="h-12 px-4 border-b border-white/10 flex items-center justify-between bg-[#111115]">
+      <div className="h-11 px-4 border-b border-white/[0.07] flex items-center justify-between bg-[#111114]">
         <div className="flex items-center gap-2">
-          <Terminal className="w-4 h-4 text-zinc-400 stroke-[1.5]" />
-          <span className="font-mono text-xs uppercase tracking-wider font-semibold text-zinc-200">
+          <Terminal className="w-3.5 h-3.5 text-zinc-400 stroke-[1.5]" />
+          <span className="font-mono text-[11px] uppercase tracking-wider font-semibold text-zinc-300">
             {activeIssue
               ? "Surgical Inspector"
               : selectedWire
               ? "Wire Inspector"
               : selectedNode
-              ? "Node & Blast Radius Mode"
+              ? "Node & Blast Radius"
               : "Diagnostics"}
           </span>
         </div>
@@ -115,113 +101,107 @@ export function InspectorDrawer({
         {(activeIssue || selectedWire || selectedNode) && (
           <button
             onClick={onClearSelection}
-            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="p-1 rounded-[4px] hover:bg-white/[0.06] text-zinc-400 hover:text-zinc-200 transition-colors"
             title="Back to all diagnostics"
           >
-            <X className="w-4 h-4 stroke-[1.5]" />
+            <X className="w-3.5 h-3.5 stroke-[1.5]" />
           </button>
         )}
       </div>
 
       {/* Drawer Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto">
         {/* CASE 1: Active Issue Selected */}
         {activeIssue && (
-          <div className="space-y-4">
-            {/* Confidence & Severity Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-wrap">
-                {activeIssue.severity === "BROKEN" ? (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 font-mono text-xs font-semibold">
-                    <AlertCircle className="w-3.5 h-3.5 stroke-[1.5]" />
-                    BROKEN
+          <div className="divide-y divide-white/[0.06]">
+            {/* Section 1: Overview */}
+            <div className="px-4 py-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      activeIssue.severity === "BROKEN" ? "bg-[#EF4444]" : "bg-[#F59E0B]"
+                    }`}
+                  />
+                  <span className="font-mono text-[11px] font-semibold text-zinc-200">
+                    {activeIssue.code}
                   </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-mono text-xs font-semibold">
-                    <AlertTriangle className="w-3.5 h-3.5 stroke-[1.5]" />
-                    SUSPICIOUS
+                  <span
+                    className={`font-mono text-[9px] uppercase px-1.5 py-0.2 rounded-[2px] ${
+                      activeIssue.severity === "BROKEN"
+                        ? "text-rose-400 bg-rose-500/10"
+                        : "text-amber-400 bg-amber-500/10"
+                    }`}
+                  >
+                    {activeIssue.severity}
                   </span>
-                )}
-                <span className="font-mono text-[10px] tracking-wider uppercase px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 font-semibold">
-                  {activeIssue.confidence || "HIGH"} CONFIDENCE
-                </span>
-                <span className="font-mono text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
-                  {activeIssue.code}
+                </div>
+                <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
+                  {activeIssue.confidence} CONFIDENCE
                 </span>
               </div>
-            </div>
 
-            {/* Issue Title & Explanation */}
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-zinc-100 leading-snug">
+              <h3 className="text-[13px] font-medium text-zinc-100 leading-snug">
                 {activeIssue.title}
               </h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-[12px] text-zinc-400 leading-relaxed">
                 {activeIssue.explanation}
               </p>
-            </div>
 
-            {/* Source -> Target Path Monospace Pills */}
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-                Integration Path
-              </div>
-              <div className="p-2.5 rounded bg-[#111115] border border-zinc-800/80 space-y-2">
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase w-12 shrink-0 pt-0.5">
-                    Source
-                  </span>
-                  <span className="font-mono text-xs text-zinc-200 break-all tabular-nums">
-                    {activeIssue.sourceFile}:{activeIssue.sourceLine}
-                  </span>
-                </div>
+              <div className="font-mono text-[11px] text-zinc-400 flex items-center gap-1.5 tabular-nums pt-1">
+                <span className="text-zinc-500 uppercase text-[9px]">Path:</span>
+                <span className="text-zinc-200">
+                  {activeIssue.sourceFile.split("/").slice(-2).join("/")}:{activeIssue.sourceLine}
+                </span>
                 {activeIssue.targetFile && (
-                  <div className="flex items-start gap-2 pt-2 border-t border-zinc-800/60">
-                    <span className="text-[10px] font-mono text-zinc-400 uppercase w-12 shrink-0 pt-0.5">
-                      Target
+                  <>
+                    <span className="text-zinc-600">→</span>
+                    <span className="text-zinc-200">
+                      {activeIssue.targetFile.split("/").slice(-2).join("/")}:
+                      {activeIssue.targetLine || 1}
                     </span>
-                    <span className="font-mono text-xs text-zinc-200 break-all tabular-nums">
-                      {activeIssue.targetFile}
-                      {activeIssue.targetLine ? `:${activeIssue.targetLine}` : ""}
-                    </span>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
 
-            {/* Real Source Code Diff Viewer (sourceSnippet & targetSnippet) */}
-            {activeIssue.sourceSnippet && (
-              <CodeSnippetViewer
-                title="Consumer Source Snippet"
-                filePath={activeIssue.sourceFile}
-                line={activeIssue.sourceLine}
-                snippet={activeIssue.sourceSnippet}
-                severity={activeIssue.severity}
-              />
+            {/* Section 2: Real Source Code Snippets */}
+            {(activeIssue.sourceSnippet || activeIssue.targetSnippet) && (
+              <div className="px-4 py-3.5 space-y-3">
+                {activeIssue.sourceSnippet && (
+                  <CodeSnippetViewer
+                    title="Consumer Source Snippet"
+                    filePath={activeIssue.sourceFile}
+                    line={activeIssue.sourceLine}
+                    snippet={activeIssue.sourceSnippet}
+                    severity={activeIssue.severity}
+                  />
+                )}
+
+                {activeIssue.targetSnippet && (
+                  <CodeSnippetViewer
+                    title="Producer Target Snippet"
+                    filePath={activeIssue.targetFile}
+                    line={activeIssue.targetLine}
+                    snippet={activeIssue.targetSnippet}
+                    severity={activeIssue.severity}
+                  />
+                )}
+              </div>
             )}
 
-            {activeIssue.targetSnippet && (
-              <CodeSnippetViewer
-                title="Producer Target Snippet"
-                filePath={activeIssue.targetFile}
-                line={activeIssue.targetLine}
-                snippet={activeIssue.targetSnippet}
-                severity={activeIssue.severity}
-              />
-            )}
-
-            {/* Contract Diff Box (if expectedShape or actualShape present) */}
+            {/* Section 3: Contract Key Diff */}
             {(activeIssue.expectedShape || activeIssue.actualShape) && (
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+              <div className="px-4 py-3.5 space-y-1.5">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
                   Contract Key Diff
                 </div>
-                <div className="rounded border border-zinc-800/80 bg-[#111115] overflow-hidden">
-                  <div className="grid grid-cols-2 text-[10px] font-mono uppercase tracking-wider bg-zinc-900/60 border-b border-zinc-800 px-3 py-1.5 text-zinc-400">
+                <div className="border border-white/[0.07] rounded-[4px] bg-[#08080a] font-mono text-[11px] overflow-hidden">
+                  <div className="grid grid-cols-2 divide-x divide-white/[0.06] border-b border-white/[0.06] bg-[#121215] px-3 py-1.5 text-[10px] uppercase tracking-wider text-zinc-500 font-medium">
                     <div>Expected (Consumer)</div>
                     <div>Actual (Producer)</div>
                   </div>
-                  <div className="divide-y divide-zinc-800/60 font-mono text-xs">
+                  <div className="divide-y divide-white/[0.04]">
                     {Array.from(
                       new Set([
                         ...Object.keys(activeIssue.expectedShape || {}),
@@ -230,44 +210,33 @@ export function InspectorDrawer({
                     ).map((key) => {
                       const expType = activeIssue.expectedShape?.[key];
                       const actType = activeIssue.actualShape?.[key];
-                      const isMissing = expType && !actType;
-                      const isExtra = !expType && actType;
-                      const isMismatch = expType && actType && expType !== actType;
-
-                      let rowBg = "";
-                      if (isMissing || isMismatch) {
-                        rowBg = "bg-rose-500/10 text-rose-300";
-                      } else if (isExtra) {
-                        rowBg = "text-zinc-400";
-                      } else {
-                        rowBg = "text-emerald-400/90";
-                      }
+                      const isMismatch = (expType && !actType) || (expType && actType && expType !== actType);
 
                       return (
                         <div
                           key={key}
-                          className={`grid grid-cols-2 px-3 py-1.5 ${rowBg}`}
+                          className="grid grid-cols-2 divide-x divide-white/[0.04] px-3 py-1.5"
                         >
-                          <div className="truncate">
+                          <div className="truncate pr-2">
                             {expType ? (
-                              <span>
-                                {key}:{" "}
-                                <span className="opacity-75">{expType}</span>
+                              <span className="text-zinc-300">
+                                {key}: <span className="text-zinc-500">{expType}</span>
                               </span>
                             ) : (
                               <span className="text-zinc-600">—</span>
                             )}
                           </div>
-                          <div className="truncate">
+                          <div className="truncate pl-2">
                             {actType ? (
-                              <span>
-                                {key}:{" "}
-                                <span className="opacity-75">{actType}</span>
+                              <span
+                                className={
+                                  isMismatch ? "text-rose-400 font-semibold" : "text-zinc-300"
+                                }
+                              >
+                                {key}: <span className="text-zinc-500">{actType}</span>
                               </span>
                             ) : (
-                              <span className="text-rose-400 font-semibold">
-                                (missing)
-                              </span>
+                              <span className="text-rose-400 font-semibold">(missing)</span>
                             )}
                           </div>
                         </div>
@@ -278,150 +247,148 @@ export function InspectorDrawer({
               </div>
             )}
 
-            {/* Surgical Fix Prompt with 1-Click Copy */}
-            <div className="space-y-1.5 pt-1">
+            {/* Section 4: Fix Prompt with High-Contrast Primary Button */}
+            <div className="px-4 py-3.5 space-y-2">
               <div className="flex items-center justify-between">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
                   Surgical Fix Prompt
-                </div>
+                </span>
                 <button
                   onClick={() => handleCopyPrompt(activeIssue.repairPrompt)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-medium border transition-colors ${
-                    copied
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border-zinc-700"
-                  }`}
+                  className="h-8 px-3 rounded-[4px] bg-zinc-100 hover:bg-white text-zinc-950 font-medium text-[12px] font-sans transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   {copied ? (
                     <>
-                      <Check className="w-3.5 h-3.5 stroke-[1.5]" />
-                      Copied to clipboard
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Copied Prompt</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-3.5 h-3.5 stroke-[1.5]" />
-                      Copy Fix Prompt for IDE
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Fix Prompt for IDE</span>
                     </>
                   )}
                 </button>
               </div>
 
-              <div className="relative rounded bg-[#09090b] border border-zinc-800 p-3 font-mono text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap select-all">
+              <div className="rounded-[4px] bg-[#070709] border border-white/[0.07] p-2.5 font-mono text-[11px] text-zinc-400 leading-relaxed whitespace-pre-wrap select-all max-h-48 overflow-y-auto">
                 {activeIssue.repairPrompt}
               </div>
             </div>
 
-            {/* Dual-Mode Wire Simulator */}
-            <WireSimulator
-              graph={graph}
-              selectedWire={selectedWire}
-              activeIssue={activeIssue}
-              selectedNode={selectedNode}
-            />
+            {/* Section 5: Wire Simulator */}
+            <div className="px-4 py-3.5">
+              <WireSimulator
+                graph={graph}
+                selectedWire={selectedWire}
+                activeIssue={activeIssue}
+                selectedNode={selectedNode}
+              />
+            </div>
           </div>
         )}
 
-        {/* CASE 2: Verified Wire Selected (No Issues) */}
+        {/* CASE 2: Verified Wire Selected */}
         {!activeIssue && selectedWire && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono text-xs font-semibold">
-                <CheckCircle2 className="w-3.5 h-3.5 stroke-[1.5]" />
-                VERIFIED
-              </span>
-              <span className="font-mono text-xs text-zinc-400">
-                {selectedWire.id}
-              </span>
-            </div>
+          <div className="divide-y divide-white/[0.06]">
+            <div className="px-4 py-3.5 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                <span className="font-mono text-[11px] font-semibold text-emerald-400">
+                  VERIFIED WIRE
+                </span>
+                <span className="font-mono text-[10px] text-zinc-500">
+                  {selectedWire.id}
+                </span>
+              </div>
 
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-zinc-100">
+              <h3 className="text-[13px] font-medium text-zinc-100">
                 Integration Contract Verified
               </h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Wireboard confirmed zero property mismatches, matching route
-                signatures, and synchronized database column types.
+              <p className="text-[12px] text-zinc-400 leading-relaxed">
+                Matching route signatures, synchronized database column types, and zero property mismatches.
               </p>
+
+              <div className="border border-white/[0.07] rounded-[4px] bg-[#08080a] divide-y divide-white/[0.04] font-mono text-[11px]">
+                <div className="flex items-center justify-between px-3 py-1.5 text-zinc-400">
+                  <span className="text-zinc-500 uppercase text-[9px]">Source:</span>
+                  <button
+                    onClick={() => {
+                      const node = graph.nodes.find((n) => n.id === selectedWire.sourceId);
+                      if (node) onSelectNode(node);
+                    }}
+                    className="text-zinc-200 hover:text-white"
+                  >
+                    {selectedWire.sourceId}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between px-3 py-1.5 text-zinc-400">
+                  <span className="text-zinc-500 uppercase text-[9px]">Target:</span>
+                  <button
+                    onClick={() => {
+                      const node = graph.nodes.find((n) => n.id === selectedWire.targetId);
+                      if (node) onSelectNode(node);
+                    }}
+                    className="text-zinc-200 hover:text-white"
+                  >
+                    {selectedWire.targetId}
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="p-3 rounded bg-[#111115] border border-zinc-800/80 space-y-2 text-xs font-mono">
-              <div className="flex items-center justify-between text-zinc-400">
-                <span>Source Node:</span>
-                <button
-                  onClick={() => {
-                    const node = graph.nodes.find((n) => n.id === selectedWire.sourceId);
-                    if (node) onSelectNode(node);
-                  }}
-                  className="text-zinc-200 hover:underline hover:text-white"
-                >
-                  {selectedWire.sourceId}
-                </button>
-              </div>
-              <div className="flex items-center justify-between text-zinc-400 border-t border-zinc-800/60 pt-2">
-                <span>Target Node:</span>
-                <button
-                  onClick={() => {
-                    const node = graph.nodes.find((n) => n.id === selectedWire.targetId);
-                    if (node) onSelectNode(node);
-                  }}
-                  className="text-zinc-200 hover:underline hover:text-white"
-                >
-                  {selectedWire.targetId}
-                </button>
-              </div>
+            <div className="px-4 py-3.5">
+              <WireSimulator
+                graph={graph}
+                selectedWire={selectedWire}
+                activeIssue={null}
+                selectedNode={null}
+              />
             </div>
-
-            {/* Dual-Mode Wire Simulator */}
-            <WireSimulator
-              graph={graph}
-              selectedWire={selectedWire}
-              activeIssue={null}
-              selectedNode={null}
-            />
           </div>
         )}
 
-        {/* CASE 3: Node Selected (Node & Blast Radius Mode) */}
+        {/* CASE 3: Node Selected */}
         {!activeIssue && !selectedWire && selectedNode && blastRadius && (
-          <div className="space-y-4">
-            {/* Header badges */}
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-                {selectedNode.kind}
-              </span>
-              {selectedNode.httpMethod && (
-                <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 tabular-nums">
-                  {selectedNode.httpMethod}
+          <div className="divide-y divide-white/[0.06]">
+            <div className="px-4 py-3.5 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-400 font-medium">
+                  {selectedNode.kind}
                 </span>
-              )}
-            </div>
+                {selectedNode.httpMethod && (
+                  <span className="font-mono text-[10px] font-semibold text-zinc-300">
+                    {selectedNode.httpMethod}
+                  </span>
+                )}
+              </div>
 
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-zinc-100">
+              <h3 className="text-[13px] font-medium text-zinc-100">
                 {selectedNode.label}
               </h3>
-              <div className="font-mono text-xs text-zinc-400 tabular-nums">
+              <div className="font-mono text-[10px] text-zinc-500 tabular-nums">
                 {selectedNode.filePath}:{selectedNode.line}
               </div>
             </div>
 
-            {/* Real Source Code Snippet if present on node */}
             {selectedNode.codeSnippet && (
-              <CodeSnippetViewer
-                title="Node Source Code"
-                filePath={selectedNode.filePath}
-                line={selectedNode.line}
-                snippet={selectedNode.codeSnippet}
-                severity={nodeStatus}
-              />
+              <div className="px-4 py-3.5">
+                <CodeSnippetViewer
+                  title="Node Source Code"
+                  filePath={selectedNode.filePath}
+                  line={selectedNode.line}
+                  snippet={selectedNode.codeSnippet}
+                  severity={nodeStatus}
+                />
+              </div>
             )}
 
             {/* Connected Wires */}
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-                Connected Integration Wires
+            <div className="px-4 py-3.5 space-y-1.5">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                Connected Wires
               </div>
-              <div className="space-y-1">
+              <div className="border border-white/[0.07] rounded-[4px] bg-[#08080a] divide-y divide-white/[0.04]">
                 {graph.wires
                   .filter(
                     (w) =>
@@ -432,202 +399,150 @@ export function InspectorDrawer({
                     <button
                       key={w.id}
                       onClick={() => onSelectWire(w)}
-                      className="w-full text-left p-2 rounded bg-[#111115] hover:bg-zinc-800/80 border border-zinc-800 flex items-center justify-between text-xs font-mono transition-colors"
+                      className="w-full text-left px-3 py-1.5 hover:bg-white/[0.03] flex items-center justify-between text-[11px] font-mono transition-colors"
                     >
-                      <span className="text-zinc-300 truncate">
+                      <span className="text-zinc-300 truncate max-w-[240px]">
                         {w.label || w.id}
                       </span>
-                      <span
-                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
-                          w.status === "BROKEN"
-                            ? "text-rose-400 bg-rose-500/10 border-rose-500/30"
-                            : w.status === "SUSPICIOUS"
-                            ? "text-amber-400 bg-amber-500/10 border-amber-500/30"
-                            : "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-                        }`}
-                      >
-                        {w.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            w.status === "BROKEN"
+                              ? "bg-[#EF4444]"
+                              : w.status === "SUSPICIOUS"
+                              ? "bg-[#F59E0B]"
+                              : "bg-[#10B981]"
+                          }`}
+                        />
+                        <span className="text-zinc-500 text-[10px] font-medium">
+                          {w.status}
+                        </span>
+                      </div>
                     </button>
                   ))}
               </div>
             </div>
 
-            {/* Payloads */}
-            {selectedNode.expectsPayload && (
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-                  Expects Payload Schema
-                </div>
-                <div className="p-2.5 rounded bg-[#111115] border border-zinc-800/80 font-mono text-xs space-y-1">
-                  {Object.entries(selectedNode.expectsPayload).map(([k, t]) => (
-                    <div key={k} className="flex justify-between">
-                      <span className="text-zinc-300">{k}:</span>
-                      <span className="text-zinc-400">{t}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {selectedNode.returnsPayload && (
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-                  Returns Payload Schema
-                </div>
-                <div className="p-2.5 rounded bg-[#111115] border border-zinc-800/80 font-mono text-xs space-y-1 max-h-48 overflow-y-auto">
-                  {Object.entries(selectedNode.returnsPayload).map(([k, t]) => (
-                    <div key={k} className="flex justify-between">
-                      <span className="text-zinc-300">{k}:</span>
-                      <span className="text-zinc-400">{t}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* BLAST RADIUS SECTION */}
-            <div className="space-y-2.5 pt-3 border-t border-zinc-800">
+            {/* Blast Radius Section */}
+            <div className="px-4 py-3.5 space-y-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Radio className="w-3.5 h-3.5 text-rose-400 stroke-[1.75]" />
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-300 font-semibold">
-                    Blast Radius Impact List
-                  </span>
-                </div>
-                <span className="font-mono text-[10px] text-zinc-400 tabular-nums">
-                  {blastRadius.affectedFiles.length} affected files
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-medium">
+                  Blast Radius Impact List
+                </span>
+                <span className="font-mono text-[10px] text-zinc-500 tabular-nums">
+                  {blastRadius.affectedFiles.length} files
                 </span>
               </div>
 
-              <p className="text-[11px] text-zinc-400 leading-relaxed">
-                Upstream and downstream components, routes, and schemas that will break if this node&apos;s contract changes:
-              </p>
-
-              <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
+              <div className="border border-white/[0.07] rounded-[4px] bg-[#08080a] divide-y divide-white/[0.04] max-h-40 overflow-y-auto">
                 {blastRadius.affectedFiles.map((file, idx) => (
                   <div
                     key={`${file.filePath}:${file.line}-${idx}`}
-                    className="p-2 rounded bg-[#111115] border border-zinc-800/80 text-xs font-mono flex items-center justify-between gap-2"
+                    className="px-3 py-1.5 text-[11px] font-mono flex items-center justify-between gap-2"
                   >
                     <div className="truncate">
-                      <span className="text-zinc-200">
+                      <span className="text-zinc-300">
                         {file.filePath.split("/").slice(-2).join("/")}
                       </span>
-                      <span className="text-zinc-500 tabular-nums">:{file.line}</span>
-                      <span className="text-zinc-400 text-[10px] ml-1.5 truncate">
-                        ({file.nodeLabel})
-                      </span>
+                      <span className="text-zinc-600 tabular-nums">:{file.line}</span>
                     </div>
-                    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700/60 shrink-0 font-medium">
+                    <span className="text-[10px] text-zinc-500 shrink-0">
                       {file.role}
                     </span>
                   </div>
                 ))}
               </div>
 
-              {/* Proposed field change input */}
-              <div className="space-y-1 pt-1">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-                  Proposed Field Change
-                </div>
-                <input
-                  type="text"
-                  value={proposedChange}
-                  onChange={(e) => setProposedChange(e.target.value)}
-                  placeholder="e.g. rename user_id -> id"
-                  className="w-full px-2.5 py-1.5 rounded bg-[#09090b] border border-zinc-800 text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700"
-                />
-              </div>
+              <input
+                type="text"
+                value={proposedChange}
+                onChange={(e) => setProposedChange(e.target.value)}
+                placeholder="e.g. rename user_id -> id"
+                className="w-full bg-[#070709] border border-white/[0.08] rounded-[4px] text-xs font-mono text-zinc-200 px-2 py-1 focus:outline-none placeholder:text-zinc-600"
+              />
 
-              {/* Copy Atomic Execution Plan button */}
               <button
                 onClick={() => handleCopyPlan(blastRadius.atomicExecutionPrompt)}
-                className={`w-full py-2 px-3 rounded text-xs font-mono font-medium border transition-colors flex items-center justify-center gap-2 ${
-                  copiedPlan
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                    : "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border-zinc-700"
-                }`}
+                className="w-full h-8 px-3 rounded-[4px] bg-zinc-100 hover:bg-white text-zinc-950 font-medium text-[12px] font-sans transition-colors flex items-center justify-center gap-1.5 cursor-pointer mt-1"
               >
                 {copiedPlan ? (
                   <>
-                    <Check className="w-3.5 h-3.5 stroke-[1.5]" />
-                    <span>Copied Atomic Execution Plan</span>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Copied Execution Plan</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5 stroke-[1.5]" />
+                    <Copy className="w-3.5 h-3.5" />
                     <span>Copy Atomic Execution Plan</span>
                   </>
                 )}
               </button>
             </div>
 
-            {/* Wire Simulator for Node */}
-            <WireSimulator
-              graph={graph}
-              selectedWire={null}
-              activeIssue={null}
-              selectedNode={selectedNode}
-            />
+            <div className="px-4 py-3.5">
+              <WireSimulator
+                graph={graph}
+                selectedWire={null}
+                activeIssue={null}
+                selectedNode={selectedNode}
+              />
+            </div>
           </div>
         )}
 
-        {/* CASE 4: Nothing Selected -> Full Diagnostics List */}
+        {/* CASE 4: Nothing Selected -> Flat Edge-to-Edge Linear-Style Issue List */}
         {!activeIssue && !selectedWire && !selectedNode && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-xs font-mono text-zinc-400 pb-1">
-              <span>{graph.issues.length} DETECTED ISSUES</span>
-              <div className="flex items-center gap-2">
-                <span className="text-rose-400 tabular-nums font-semibold">
+          <div>
+            <div className="px-4 py-2.5 bg-[#121215] border-b border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-zinc-400">
+              <span className="font-semibold text-zinc-300">
+                {graph.issues.length} DETECTED ISSUES
+              </span>
+              <div className="flex items-center gap-3 tabular-nums">
+                <span className="flex items-center gap-1 text-rose-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#EF4444]" />
                   {brokenCount} Broken
                 </span>
-                <span>•</span>
-                <span className="text-amber-400 tabular-nums font-semibold">
+                <span className="flex items-center gap-1 text-amber-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
                   {suspiciousCount} Suspicious
                 </span>
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="divide-y divide-white/[0.06]">
               {sortedIssues.map((issue) => (
                 <div
                   key={issue.id}
                   onClick={() => onSelectIssue(issue)}
-                  className="group p-3 rounded bg-[#111115] hover:bg-zinc-900 border border-zinc-800/80 hover:border-zinc-700 transition-all cursor-pointer space-y-1.5"
+                  className="px-4 py-3 hover:bg-white/[0.02] transition-colors cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      {issue.severity === "BROKEN" ? (
-                        <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30">
-                          <AlertCircle className="w-3 h-3 stroke-[1.5]" />
-                          BROKEN
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                          <AlertTriangle className="w-3 h-3 stroke-[1.5]" />
-                          SUSPICIOUS
-                        </span>
-                      )}
-                      <span className="font-mono text-[10px] text-zinc-400">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          issue.severity === "BROKEN" ? "bg-[#EF4444]" : "bg-[#F59E0B]"
+                        }`}
+                      />
+                      <span className="font-mono text-[11px] font-medium text-zinc-300">
                         {issue.code}
                       </span>
                     </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+                    <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
+                      {issue.confidence}
+                    </span>
                   </div>
 
-                  <div className="text-xs font-medium text-zinc-200 leading-snug line-clamp-1">
+                  <div className="text-[13px] font-medium text-zinc-100 mt-1 line-clamp-1">
                     {issue.title}
                   </div>
 
-                  <div className="font-mono text-[10px] text-zinc-400 truncate tabular-nums">
-                    {issue.sourceFile.split("/").slice(-2).join("/")}:
-                    {issue.sourceLine}
+                  <div className="font-mono text-[11px] text-zinc-500 mt-1 truncate tabular-nums">
+                    {issue.sourceFile.split("/").slice(-2).join("/")}:{issue.sourceLine}
                     {issue.targetFile && (
                       <>
                         {" "}
-                        → {issue.targetFile.split("/").slice(-2).join("/")}
-                        {issue.targetLine ? `:${issue.targetLine}` : ""}
+                        → {issue.targetFile.split("/").slice(-2).join("/")}:
+                        {issue.targetLine || 1}
                       </>
                     )}
                   </div>

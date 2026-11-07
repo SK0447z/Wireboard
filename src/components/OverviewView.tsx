@@ -1,17 +1,6 @@
 "use client";
 
 import React, { useMemo } from "react";
-import {
-  ShieldAlert,
-  CheckCircle2,
-  AlertTriangle,
-  AlertCircle,
-  FileCode,
-  ArrowRight,
-  TrendingDown,
-  TrendingUp,
-  Minus,
-} from "lucide-react";
 import type { ArchitectureGraph } from "@/types/graph";
 import { generateContractReport } from "@/engine/generateReport";
 
@@ -52,7 +41,6 @@ export function OverviewView({
   const currentVerified = graph.summary.verifiedWires;
   const totalIssues = graph.issues.length;
 
-  // Scan Delta comparison against prior scan
   const delta = useMemo(() => {
     if (!priorScan) return null;
     const issueDiff = totalIssues - priorScan.totalIssues;
@@ -61,7 +49,6 @@ export function OverviewView({
     return { issueDiff, brokenDiff, scoreDiff };
   }, [priorScan, totalIssues, currentBroken, score]);
 
-  // Breakdown by issue code
   const codeBreakdown = useMemo(() => {
     const counts: Record<string, { broken: number; suspicious: number; total: number }> = {};
     for (const issue of graph.issues) {
@@ -78,7 +65,6 @@ export function OverviewView({
     return Object.entries(counts).sort((a, b) => b[1].total - a[1].total);
   }, [graph.issues]);
 
-  // Most Vulnerable Files list
   const vulnerableFiles = useMemo(() => {
     const fileStats = new Map<
       string,
@@ -96,7 +82,6 @@ export function OverviewView({
       else item.suspicious++;
     }
 
-    // Associate node IDs
     for (const [path, stat] of fileStats.entries()) {
       const matchNode = graph.nodes.find((n) => n.filePath === path);
       if (matchNode) {
@@ -114,196 +99,159 @@ export function OverviewView({
   }, [graph]);
 
   return (
-    <div className="flex-1 h-full overflow-y-auto p-6 bg-[#09090b] text-zinc-100 space-y-6">
-      {/* Title & Scan Delta Banner */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold font-mono tracking-tight text-zinc-100 flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-emerald-400 stroke-[1.75]" />
-              Executive Health & Contract Overview
-            </h1>
-            <p className="text-xs text-zinc-400 font-mono mt-1">
-              Deterministic AST audit for <span className="text-zinc-200">{graph.projectName}</span> • Scanned at{" "}
-              <span className="tabular-nums">{graph.scannedAt}</span>
-            </p>
-          </div>
+    <div className="flex-1 h-full overflow-y-auto p-5 bg-[#09090b] text-zinc-100 space-y-4">
+      {/* Header & Delta Banner */}
+      <div className="space-y-3">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">
+            Executive Health & Contract Overview
+          </h1>
+          <p className="text-xs font-mono text-zinc-500 mt-0.5">
+            Deterministic AST audit for <span className="text-zinc-300">{graph.projectName}</span> • Scanned at{" "}
+            <span className="tabular-nums">{graph.scannedAt}</span>
+          </p>
         </div>
 
-        {/* Scan Delta Banner */}
         {delta ? (
-          <div className="p-3.5 rounded bg-[#111115] border border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {delta.issueDiff < 0 ? (
-                <div className="w-8 h-8 rounded bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <TrendingDown className="w-4 h-4" />
-                </div>
-              ) : delta.issueDiff > 0 ? (
-                <div className="w-8 h-8 rounded bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
-                  <TrendingUp className="w-4 h-4" />
-                </div>
-              ) : (
-                <div className="w-8 h-8 rounded bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400">
-                  <Minus className="w-4 h-4" />
-                </div>
-              )}
-
-              <div>
-                <div className="text-xs font-mono font-semibold text-zinc-200">
-                  Delta since prior scan:{" "}
-                  {delta.issueDiff < 0
-                    ? `${Math.abs(delta.issueDiff)} issue(s) resolved`
-                    : delta.issueDiff > 0
-                    ? `+${delta.issueDiff} new issue(s)`
-                    : "Zero issue variance"}
-                  {", "}
-                  {delta.brokenDiff <= 0
-                    ? `${Math.abs(delta.brokenDiff)} broken wire(s) eliminated`
-                    : `+${delta.brokenDiff} new broken wire(s)`}
-                </div>
-                <div className="text-[11px] font-mono text-zinc-400">
-                  Integrity Score shifted from{" "}
-                  <span className="tabular-nums font-semibold">{priorScan?.score}%</span> to{" "}
-                  <span className="tabular-nums font-semibold text-zinc-200">{score}%</span>
-                </div>
-              </div>
+          <div className="border border-white/[0.07] rounded-[4px] bg-[#0c0c0e] px-3.5 py-2 flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center gap-2">
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  delta.issueDiff <= 0 ? "bg-[#10B981]" : "bg-[#EF4444]"
+                }`}
+              />
+              <span className="text-zinc-300 font-medium">
+                Delta since prior scan:{" "}
+                {delta.issueDiff < 0
+                  ? `${Math.abs(delta.issueDiff)} issue(s) resolved`
+                  : delta.issueDiff > 0
+                  ? `+${delta.issueDiff} new issue(s)`
+                  : "Zero issue variance"}
+                {", "}
+                {delta.brokenDiff <= 0
+                  ? `${Math.abs(delta.brokenDiff)} broken wire(s) eliminated`
+                  : `+${delta.brokenDiff} new broken wire(s)`}
+              </span>
             </div>
-
-            <span
-              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded border ${
-                delta.scoreDiff >= 0
-                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                  : "bg-rose-500/10 text-rose-400 border-rose-500/30"
-              }`}
-            >
-              {delta.scoreDiff >= 0 ? `+${delta.scoreDiff}%` : `${delta.scoreDiff}%`}
+            <span className="text-zinc-500 tabular-nums">
+              Score: {priorScan?.score}% → <span className="text-zinc-200">{score}%</span> (
+              {delta.scoreDiff >= 0 ? `+${delta.scoreDiff}%` : `${delta.scoreDiff}%`})
             </span>
           </div>
         ) : (
-          <div className="p-3 rounded bg-[#111115] border border-white/10 flex items-center justify-between text-xs font-mono text-zinc-400">
-            <span>First repository scan registered. Future scans will calculate contract deltas.</span>
-            <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-              BASELINE SCAN
+          <div className="border border-white/[0.07] rounded-[4px] bg-[#0c0c0e] px-3.5 py-2 flex items-center justify-between text-xs font-mono text-zinc-500">
+            <span>First repository scan registered. Future scans will display delta metrics.</span>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-wider">
+              Baseline Scan
             </span>
           </div>
         )}
       </div>
 
-      {/* Top Telemetry Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Score Card */}
-        <div className="p-4 rounded-md bg-[#111115] border border-white/10 space-y-1">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+      {/* Top 4 Telemetry Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="p-3.5 rounded-[4px] bg-[#0c0c0e] border border-white/[0.07] space-y-1">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
             Contract Integrity Score
           </div>
-          <div className="flex items-baseline gap-2">
+          <div className="text-2xl font-bold font-mono tabular-nums">
             <span
-              className={`text-3xl font-bold font-mono tabular-nums ${
+              className={
                 score === 100
                   ? "text-emerald-400"
                   : score >= 70
                   ? "text-amber-400"
                   : "text-rose-400"
-              }`}
+              }
             >
               {score}%
             </span>
-            <span className="text-xs font-mono text-zinc-500">/ 100%</span>
+            <span className="text-xs font-mono text-zinc-600 font-normal"> / 100%</span>
           </div>
-          <div className="text-[11px] font-mono text-zinc-400 pt-1">
-            {score === 100
-              ? "All integration wires fully verified"
-              : `${currentBroken} critical contract mismatch(es)`}
+          <div className="text-[11px] font-mono text-zinc-500">
+            {score === 100 ? "Zero contract drift" : `${currentBroken} broken contract(s)`}
           </div>
         </div>
 
-        {/* Verified Wires Card */}
-        <div className="p-4 rounded-md bg-[#111115] border border-white/10 space-y-1">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 flex items-center justify-between">
+        <div className="p-3.5 rounded-[4px] bg-[#0c0c0e] border border-white/[0.07] space-y-1">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 flex items-center justify-between">
             <span>Verified Wires</span>
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
           </div>
-          <div className="text-3xl font-bold font-mono tabular-nums text-emerald-400">
+          <div className="text-2xl font-bold font-mono tabular-nums text-emerald-400">
             {currentVerified}
           </div>
-          <div className="text-[11px] font-mono text-zinc-400 pt-1">
-            Matching route signatures & DB schemas
+          <div className="text-[11px] font-mono text-zinc-500">
+            Synchronized route & DB schemas
           </div>
         </div>
 
-        {/* Suspicious Wires Card */}
-        <div className="p-4 rounded-md bg-[#111115] border border-white/10 space-y-1">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 flex items-center justify-between">
+        <div className="p-3.5 rounded-[4px] bg-[#0c0c0e] border border-white/[0.07] space-y-1">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 flex items-center justify-between">
             <span>Suspicious Wires</span>
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
           </div>
-          <div className="text-3xl font-bold font-mono tabular-nums text-amber-400">
+          <div className="text-2xl font-bold font-mono tabular-nums text-amber-400">
             {currentSuspicious}
           </div>
-          <div className="text-[11px] font-mono text-zinc-400 pt-1">
-            Type-cheats (`as any`) & swallowed errors
+          <div className="text-[11px] font-mono text-zinc-500">
+            Type-cheats & swallowed errors
           </div>
         </div>
 
-        {/* Broken Wires Card */}
-        <div className="p-4 rounded-md bg-[#111115] border border-white/10 space-y-1">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 flex items-center justify-between">
+        <div className="p-3.5 rounded-[4px] bg-[#0c0c0e] border border-white/[0.07] space-y-1">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 flex items-center justify-between">
             <span>Broken Wires</span>
-            <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#EF4444]" />
           </div>
-          <div className="text-3xl font-bold font-mono tabular-nums text-rose-400">
+          <div className="text-2xl font-bold font-mono tabular-nums text-rose-400">
             {currentBroken}
           </div>
-          <div className="text-[11px] font-mono text-zinc-400 pt-1">
-            Missing endpoints or mismatched keys
+          <div className="text-[11px] font-mono text-zinc-500">
+            Missing endpoints & key mismatches
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Issue Code Breakdown & Most Vulnerable Files */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Breakdown by Issue Code */}
-        <div className="p-4 rounded-md bg-[#111115] border border-white/10 space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-            <div className="font-mono text-xs uppercase tracking-wider font-semibold text-zinc-200">
-              Detector Code Breakdown
-            </div>
-            <span className="font-mono text-[10px] text-zinc-400 tabular-nums">
-              {codeBreakdown.length} active codes
-            </span>
+      {/* Main Grid: Code Breakdown & Vulnerable Files */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {/* Detector Code Breakdown */}
+        <div className="border border-white/[0.07] rounded-[4px] bg-[#0c0c0e] overflow-hidden">
+          <div className="px-3.5 py-2 bg-[#121215] border-b border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-zinc-400 font-medium uppercase tracking-wider">
+            <span>Detector Code Breakdown</span>
+            <span className="text-zinc-600 tabular-nums">{codeBreakdown.length} codes</span>
           </div>
 
           {codeBreakdown.length === 0 ? (
-            <div className="py-8 text-center text-xs font-mono text-zinc-400">
-              Zero integration issues detected across repository.
+            <div className="py-8 text-center text-xs font-mono text-zinc-600">
+              Zero integration issues detected.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-white/[0.04]">
               {codeBreakdown.map(([code, counts]) => (
                 <div
                   key={code}
                   onClick={() => onNavigateToDiagnostics(code)}
-                  className="group p-2.5 rounded bg-[#09090b] hover:bg-zinc-900 border border-zinc-800 flex items-center justify-between cursor-pointer transition-colors"
+                  className="px-3.5 py-2 hover:bg-white/[0.02] flex items-center justify-between cursor-pointer transition-colors text-xs font-mono"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold text-zinc-200 group-hover:text-white">
-                      {code}
-                    </span>
+                    <span className="text-zinc-200 font-medium">{code}</span>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-[11px] tabular-nums">
                     {counts.broken > 0 && (
-                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30">
-                        {counts.broken} Broken
+                      <span className="flex items-center gap-1 text-rose-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#EF4444]" />
+                        {counts.broken}
                       </span>
                     )}
                     {counts.suspicious > 0 && (
-                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                        {counts.suspicious} Suspicious
+                      <span className="flex items-center gap-1 text-amber-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
+                        {counts.suspicious}
                       </span>
                     )}
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 group-hover:text-zinc-200">
-                    <span className="tabular-nums">{counts.total} total</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span className="text-zinc-500">{counts.total} total</span>
                   </div>
                 </div>
               ))}
@@ -311,48 +259,42 @@ export function OverviewView({
           )}
         </div>
 
-        {/* Most Vulnerable Files List */}
-        <div className="p-4 rounded-md bg-[#111115] border border-white/10 space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-            <div className="font-mono text-xs uppercase tracking-wider font-semibold text-zinc-200">
-              Most Vulnerable Files
-            </div>
-            <span className="font-mono text-[10px] text-zinc-400">
-              Ranked by issue density
-            </span>
+        {/* Most Vulnerable Files */}
+        <div className="border border-white/[0.07] rounded-[4px] bg-[#0c0c0e] overflow-hidden">
+          <div className="px-3.5 py-2 bg-[#121215] border-b border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-zinc-400 font-medium uppercase tracking-wider">
+            <span>Most Vulnerable Files</span>
+            <span className="text-zinc-600">Ranked by issues</span>
           </div>
 
           {vulnerableFiles.length === 0 ? (
-            <div className="py-8 text-center text-xs font-mono text-zinc-400">
-              No vulnerable files found in this scan.
+            <div className="py-8 text-center text-xs font-mono text-zinc-600">
+              No vulnerable files detected.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-white/[0.04]">
               {vulnerableFiles.map((file) => (
                 <div
                   key={file.filePath}
                   onClick={() => onNavigateToArchitecture(file.nodeId)}
-                  className="group p-2.5 rounded bg-[#09090b] hover:bg-zinc-900 border border-zinc-800 flex items-center justify-between cursor-pointer transition-colors"
+                  className="px-3.5 py-2 hover:bg-white/[0.02] flex items-center justify-between cursor-pointer transition-colors text-xs font-mono"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileCode className="w-4 h-4 text-zinc-400 shrink-0" />
-                    <span className="font-mono text-xs text-zinc-200 truncate group-hover:text-white">
-                      {file.filePath.split("/").slice(-2).join("/")}
-                    </span>
-                  </div>
+                  <span className="text-zinc-300 truncate max-w-[240px]">
+                    {file.filePath.split("/").slice(-2).join("/")}
+                  </span>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-3 text-[11px] tabular-nums shrink-0">
                     {file.broken > 0 && (
-                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 tabular-nums font-semibold">
-                        {file.broken} Broken
+                      <span className="flex items-center gap-1 text-rose-400 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#EF4444]" />
+                        {file.broken} broken
                       </span>
                     )}
                     {file.suspicious > 0 && (
-                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 tabular-nums font-semibold">
-                        {file.suspicious} Suspicious
+                      <span className="flex items-center gap-1 text-amber-400 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
+                        {file.suspicious} susp
                       </span>
                     )}
-                    <ArrowRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-200" />
                   </div>
                 </div>
               ))}

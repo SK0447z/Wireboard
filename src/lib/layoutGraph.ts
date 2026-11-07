@@ -22,7 +22,7 @@ export interface ContractEdgeData {
   [key: string]: unknown;
 }
 
-export const NODE_WIDTH = 340;
+export const NODE_WIDTH = 260;
 export const NODE_HEIGHT = 160;
 export const RANK_SEP = 180;
 export const NODE_SEP = 60;

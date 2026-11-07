@@ -1,15 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import {
-  AlertCircle,
-  AlertTriangle,
-  Copy,
-  Check,
-  Search,
-  ExternalLink,
-  Code2,
-} from "lucide-react";
+import { Copy, Check, Search, ExternalLink } from "lucide-react";
 import type { ArchitectureGraph, DiagnosticIssue } from "@/types/graph";
 import { CodeSnippetViewer } from "./CodeSnippetViewer";
 
@@ -36,7 +28,6 @@ export function DiagnosticsView({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Distinct detector codes in graph
   const availableCodes = useMemo(() => {
     const set = new Set<string>();
     for (const issue of graph.issues) {
@@ -45,7 +36,6 @@ export function DiagnosticsView({
     return Array.from(set).sort();
   }, [graph.issues]);
 
-  // Filtered issues
   const filteredIssues = useMemo(() => {
     return graph.issues.filter((issue) => {
       if (severityFilter !== "ALL" && issue.severity !== severityFilter) return false;
@@ -67,48 +57,47 @@ export function DiagnosticsView({
   }, [graph.issues, severityFilter, confidenceFilter, codeFilter, searchQuery]);
 
   return (
-    <div className="flex-1 h-full overflow-y-auto p-6 bg-[#09090b] text-zinc-100 space-y-4">
-      {/* Header & Filter Controls */}
-      <div className="space-y-3 pb-2 border-b border-white/10">
+    <div className="flex-1 h-full overflow-y-auto p-5 bg-[#09090b] text-zinc-100 space-y-4">
+      {/* Top Header & Filters */}
+      <div className="space-y-3 pb-3 border-b border-white/[0.07]">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold font-mono tracking-tight text-zinc-100 flex items-center gap-2">
-              <Code2 className="w-5 h-5 text-emerald-400 stroke-[1.75]" />
+            <h1 className="text-lg font-semibold tracking-tight text-zinc-100">
               Integration Diagnostics & Source Code Diffs
             </h1>
-            <p className="text-xs text-zinc-400 font-mono mt-1">
-              Showing <span className="tabular-nums font-semibold text-zinc-200">{filteredIssues.length}</span> of{" "}
-              <span className="tabular-nums">{graph.issues.length}</span> detected issues
+            <p className="text-xs font-mono text-zinc-500 mt-0.5">
+              Showing <span className="tabular-nums font-semibold text-zinc-300">{filteredIssues.length}</span> of{" "}
+              <span className="tabular-nums">{graph.issues.length}</span> detected contract issues
             </p>
           </div>
 
           {/* Search box */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#111115] border border-zinc-800 text-xs font-mono w-72">
-            <Search className="w-3.5 h-3.5 text-zinc-500" />
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-[#070709] border border-white/[0.08] text-xs font-mono w-72">
+            <Search className="w-3.5 h-3.5 text-zinc-600" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search file, title, or code..."
-              className="w-full bg-transparent text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
+              className="w-full bg-transparent text-zinc-200 placeholder:text-zinc-600 focus:outline-none text-[11px]"
             />
           </div>
         </div>
 
-        {/* Filter Pill Row */}
-        <div className="flex items-center gap-4 flex-wrap text-xs font-mono">
+        {/* Filter Controls Row */}
+        <div className="flex items-center gap-3 flex-wrap text-xs font-mono">
           {/* Severity */}
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Severity:</span>
-            <div className="flex rounded bg-[#111115] border border-zinc-800 p-0.5">
+            <div className="flex rounded-[4px] bg-[#08080a] border border-white/[0.07] p-0.5 text-[10px]">
               {(["ALL", "BROKEN", "SUSPICIOUS"] as const).map((sev) => (
                 <button
                   key={sev}
                   onClick={() => setSeverityFilter(sev)}
-                  className={`px-2 py-0.5 rounded transition-colors ${
+                  className={`px-2 py-0.5 rounded-[3px] transition-colors ${
                     severityFilter === sev
-                      ? "bg-zinc-800 text-zinc-100 font-medium"
-                      : "text-zinc-400 hover:text-zinc-200"
+                      ? "bg-white/[0.08] text-zinc-100 font-medium"
+                      : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
                   {sev}
@@ -120,15 +109,15 @@ export function DiagnosticsView({
           {/* Confidence */}
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Confidence:</span>
-            <div className="flex rounded bg-[#111115] border border-zinc-800 p-0.5">
+            <div className="flex rounded-[4px] bg-[#08080a] border border-white/[0.07] p-0.5 text-[10px]">
               {(["ALL", "HIGH", "MEDIUM"] as const).map((conf) => (
                 <button
                   key={conf}
                   onClick={() => setConfidenceFilter(conf)}
-                  className={`px-2 py-0.5 rounded transition-colors ${
+                  className={`px-2 py-0.5 rounded-[3px] transition-colors ${
                     confidenceFilter === conf
-                      ? "bg-zinc-800 text-zinc-100 font-medium"
-                      : "text-zinc-400 hover:text-zinc-200"
+                      ? "bg-white/[0.08] text-zinc-100 font-medium"
+                      : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
                   {conf}
@@ -143,7 +132,7 @@ export function DiagnosticsView({
             <select
               value={codeFilter}
               onChange={(e) => setCodeFilter(e.target.value)}
-              className="bg-[#111115] border border-zinc-800 text-xs text-zinc-200 px-2 py-1 rounded focus:outline-none focus:border-zinc-700"
+              className="bg-[#070709] border border-white/[0.08] text-[10px] text-zinc-300 px-2 h-6 rounded-[3px] focus:outline-none"
             >
               <option value="ALL">ALL CODES ({availableCodes.length})</option>
               {availableCodes.map((code) => (
@@ -156,59 +145,53 @@ export function DiagnosticsView({
         </div>
       </div>
 
-      {/* Issues List */}
+      {/* Issues List as Edge-to-Edge Hairline Table */}
       {filteredIssues.length === 0 ? (
-        <div className="py-16 text-center text-xs font-mono text-zinc-500 space-y-1">
+        <div className="py-16 text-center text-xs font-mono text-zinc-600 space-y-1">
           <div>No contract issues match your filter criteria.</div>
-          <div className="text-zinc-600">Try resetting filters to inspect all issues.</div>
+          <div>Reset filters to inspect all issues.</div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="border border-white/[0.07] rounded-[4px] bg-[#0c0c0e] divide-y divide-white/[0.06] overflow-hidden">
           {filteredIssues.map((issue) => (
-            <div
-              key={issue.id}
-              className="p-4 rounded-md bg-[#111115] border border-white/10 space-y-3"
-            >
-              {/* Header Badges & Actions */}
+            <div key={issue.id} className="p-4 space-y-3">
+              {/* Row Header & Actions */}
               <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {issue.severity === "BROKEN" ? (
-                      <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30">
-                        <AlertCircle className="w-3.5 h-3.5 stroke-[1.5]" />
-                        BROKEN
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                        <AlertTriangle className="w-3.5 h-3.5 stroke-[1.5]" />
-                        SUSPICIOUS
-                      </span>
-                    )}
-
-                    <span className="font-mono text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-                      {issue.confidence} CONFIDENCE
-                    </span>
-
-                    <span className="font-mono text-xs text-zinc-300 bg-[#09090b] border border-zinc-800 px-2 py-0.5 rounded font-semibold">
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        issue.severity === "BROKEN" ? "bg-[#EF4444]" : "bg-[#F59E0B]"
+                      }`}
+                    />
+                    <span className="font-mono text-[11px] font-semibold text-zinc-200">
                       {issue.code}
+                    </span>
+                    <span
+                      className={`font-mono text-[9px] uppercase px-1.5 py-0.2 rounded-[2px] ${
+                        issue.severity === "BROKEN"
+                          ? "text-rose-400 bg-rose-500/10"
+                          : "text-amber-400 bg-amber-500/10"
+                      }`}
+                    >
+                      {issue.severity}
+                    </span>
+                    <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
+                      {issue.confidence} CONFIDENCE
                     </span>
                   </div>
 
-                  <h3 className="text-sm font-semibold text-zinc-100">{issue.title}</h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed max-w-3xl">
+                  <h3 className="text-[13px] font-medium text-zinc-100">{issue.title}</h3>
+                  <p className="text-[12px] text-zinc-400 leading-relaxed max-w-3xl">
                     {issue.explanation}
                   </p>
                 </div>
 
-                {/* Actions: Copy Prompt & View in Architecture */}
+                {/* Actions: Copy Prompt & View Wire */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => handleCopyPrompt(issue.id, issue.repairPrompt)}
-                    className={`h-7 px-2.5 rounded text-xs font-mono font-medium border transition-colors flex items-center gap-1.5 ${
-                      copiedId === issue.id
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                        : "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border-zinc-700"
-                    }`}
+                    className="h-7 px-2.5 rounded-[4px] bg-zinc-100 hover:bg-white text-zinc-950 font-medium text-[11px] font-sans transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     {copiedId === issue.id ? (
                       <>
@@ -225,32 +208,32 @@ export function DiagnosticsView({
 
                   <button
                     onClick={() => onSelectIssueInArchitecture(issue)}
-                    className="h-7 px-2.5 rounded bg-[#09090b] hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 text-xs font-mono flex items-center gap-1.5 transition-colors"
+                    className="h-7 px-2.5 rounded-[4px] text-zinc-400 hover:text-zinc-200 border border-white/[0.06] hover:bg-white/[0.03] text-[11px] font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
                     title="View wire in Architecture Canvas"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
+                    <ExternalLink className="w-3 h-3 text-zinc-500" />
                     <span>View Wire</span>
                   </button>
                 </div>
               </div>
 
-              {/* Integration Location path */}
-              <div className="font-mono text-xs text-zinc-400 flex items-center gap-2 tabular-nums">
-                <span className="text-[10px] uppercase tracking-wider text-zinc-500">Location:</span>
-                <span className="text-zinc-200">
-                  {issue.sourceFile}:{issue.sourceLine}
+              {/* Location Path */}
+              <div className="font-mono text-[11px] text-zinc-500 flex items-center gap-1.5 tabular-nums">
+                <span className="text-zinc-600 uppercase text-[9px]">Location:</span>
+                <span className="text-zinc-300">
+                  {issue.sourceFile.split("/").slice(-2).join("/")}:{issue.sourceLine}
                 </span>
                 {issue.targetFile && (
                   <>
                     <span className="text-zinc-600">→</span>
-                    <span className="text-zinc-200">
-                      {issue.targetFile}:{issue.targetLine || 1}
+                    <span className="text-zinc-300">
+                      {issue.targetFile.split("/").slice(-2).join("/")}:{issue.targetLine || 1}
                     </span>
                   </>
                 )}
               </div>
 
-              {/* Side-by-Side Source & Target Code Snippets with > highlighting */}
+              {/* Side-by-Side Source & Target Code Snippets */}
               {(issue.sourceSnippet || issue.targetSnippet) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                   {issue.sourceSnippet && (
@@ -280,4 +263,3 @@ export function DiagnosticsView({
     </div>
   );
 }
-

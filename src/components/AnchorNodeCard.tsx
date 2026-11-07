@@ -4,7 +4,8 @@ import React, { memo } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import type { AnchorNodeData } from "@/lib/layoutGraph";
 
-function kindBadge(kind: string) {
+function kindBadge(kind: string, httpMethod?: string) {
+  if (httpMethod) return httpMethod;
   switch (kind) {
     case "FRONTEND_COMPONENT":
       return "FRONTEND";
@@ -34,126 +35,121 @@ export const AnchorNodeCard = memo(function AnchorNodeCard({
     ? Object.entries(node.returnsPayload)
     : [];
 
-  const borderClass =
-    status === "BROKEN"
-      ? "border-rose-500/70 shadow-[0_0_12px_rgba(239,68,68,0.12)]"
-      : status === "SUSPICIOUS"
-      ? "border-amber-500/70 shadow-[0_0_12px_rgba(245,158,11,0.12)]"
-      : "border-zinc-800 hover:border-zinc-700";
-
+  const isSelected = selected;
   const isBlast = data.isBlastRadius;
-  const selectedClass = selected
-    ? "ring-2 ring-zinc-200 shadow-[0_0_14px_rgba(255,255,255,0.12)]"
+
+  const outerBorder = isSelected
+    ? "border-white/30 ring-1 ring-white/20"
     : isBlast
-    ? "ring-1 ring-amber-400/80 bg-[#141419]"
-    : "";
+    ? "border-amber-400/50 ring-1 ring-amber-400/20"
+    : "border-white/[0.09] hover:border-white/[0.16]";
+
+  const headerAccent =
+    status === "BROKEN"
+      ? "border-l-2 border-l-[#EF4444]"
+      : status === "SUSPICIOUS"
+      ? "border-l-2 border-l-[#F59E0B]"
+      : "border-l-2 border-l-[#10B981]";
+
+  const statusDotColor =
+    status === "BROKEN"
+      ? "bg-[#EF4444]"
+      : status === "SUSPICIOUS"
+      ? "bg-[#F59E0B]"
+      : "bg-[#10B981]";
 
   return (
     <div
-      className={`w-[340px] rounded-md bg-[#111114] text-zinc-100 border transition-all duration-150 ${borderClass} ${selectedClass}`}
+      className={`w-[260px] bg-[#0e0e11] border rounded-[6px] shadow-2xl overflow-hidden transition-colors ${outerBorder}`}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-2.5 !h-2.5 !-left-1.5 !bg-zinc-600 !border-2 !border-zinc-950 hover:!bg-zinc-400"
+        className="!w-2 !h-2 !-left-1 !bg-zinc-600 !border !border-zinc-950 hover:!bg-zinc-300 transition-colors"
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-2.5 !h-2.5 !-right-1.5 !bg-zinc-600 !border-2 !border-zinc-950 hover:!bg-zinc-400"
+        className="!w-2 !h-2 !-right-1 !bg-zinc-600 !border !border-zinc-950 hover:!bg-zinc-300 transition-colors"
       />
 
-      {/* Header Bar */}
-      <div className="px-3 py-2 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-900/50">
-        <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[10px] tracking-wider uppercase px-1.5 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/50">
-            {kindBadge(node.kind)}
+      {/* Compact Edge-to-Edge Header */}
+      <div className={`px-3 py-2 bg-[#141418] border-b border-white/[0.06] ${headerAccent}`}>
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-400 font-medium">
+            {kindBadge(node.kind, node.httpMethod)}
           </span>
-          {node.httpMethod && (
-            <span className="font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700/50 tabular-nums">
-              {node.httpMethod}
-            </span>
-          )}
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotColor}`}
+            title={`Status: ${status}`}
+          />
         </div>
-
-        {/* Status Indicator Pip */}
-        <div className="flex items-center gap-1.5">
-          {status === "BROKEN" && (
-            <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-rose-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-              BROKEN
-            </span>
-          )}
-          {status === "SUSPICIOUS" && (
-            <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-amber-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              SUSPICIOUS
-            </span>
-          )}
-          {status === "VERIFIED" && (
-            <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              VERIFIED
-            </span>
-          )}
+        <div className="text-[13px] font-medium text-zinc-100 truncate mt-1">
+          {node.label}
+        </div>
+        <div className="font-mono text-[10px] text-zinc-500 truncate mt-0.5 tabular-nums">
+          {node.filePath.split("/").slice(-2).join("/")}:{node.line}
         </div>
       </div>
 
-      {/* Body */}
-      <div className="p-3 space-y-2">
-        <div>
-          <div className="text-sm font-medium text-zinc-100 truncate">
-            {node.label}
-          </div>
-          <div className="font-mono text-[11px] text-zinc-400 truncate tabular-nums mt-0.5">
-            {node.filePath}:{node.line}
-          </div>
+      {/* Schematic Property Rows */}
+      {(expectsEntries.length > 0 || returnsEntries.length > 0) && (
+        <div className="text-zinc-200">
+          {/* Expects Payload Rows */}
+          {expectsEntries.length > 0 && (
+            <div>
+              <div className="px-3 py-1 bg-[#0b0b0d] text-[9px] font-mono text-zinc-500 uppercase tracking-wider border-b border-white/[0.04]">
+                Expects ({expectsEntries.length})
+              </div>
+              <div className="divide-y divide-white/[0.04]">
+                {expectsEntries.slice(0, 5).map(([key, type]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between px-3 py-1 text-[11px] font-mono"
+                  >
+                    <span className="text-zinc-300 truncate max-w-[130px]">{key}</span>
+                    <span className="text-zinc-500 truncate max-w-[90px] text-right font-normal">
+                      {type}
+                    </span>
+                  </div>
+                ))}
+                {expectsEntries.length > 5 && (
+                  <div className="px-3 py-0.5 text-[10px] font-mono text-zinc-600 bg-[#09090b]">
+                    +{expectsEntries.length - 5} more
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Returns Payload Rows */}
+          {returnsEntries.length > 0 && (
+            <div>
+              <div className="px-3 py-1 bg-[#0b0b0d] text-[9px] font-mono text-zinc-500 uppercase tracking-wider border-y border-white/[0.04]">
+                Returns ({returnsEntries.length})
+              </div>
+              <div className="divide-y divide-white/[0.04]">
+                {returnsEntries.slice(0, 5).map(([key, type]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between px-3 py-1 text-[11px] font-mono"
+                  >
+                    <span className="text-zinc-300 truncate max-w-[130px]">{key}</span>
+                    <span className="text-zinc-500 truncate max-w-[90px] text-right font-normal">
+                      {type}
+                    </span>
+                  </div>
+                ))}
+                {returnsEntries.length > 5 && (
+                  <div className="px-3 py-0.5 text-[10px] font-mono text-zinc-600 bg-[#09090b]">
+                    +{returnsEntries.length - 5} more
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-
-        {/* Expects Payload Preview */}
-        {expectsEntries.length > 0 && (
-          <div className="pt-2 border-t border-zinc-800/60">
-            <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1">
-              Expects ({expectsEntries.length})
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {expectsEntries.map(([key, type]) => (
-                <span
-                  key={key}
-                  className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 tabular-nums"
-                >
-                  {key}: <span className="text-zinc-400">{type}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Returns Payload Preview */}
-        {returnsEntries.length > 0 && (
-          <div className="pt-2 border-t border-zinc-800/60">
-            <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-1">
-              Returns ({returnsEntries.length})
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {returnsEntries.slice(0, 6).map(([key, type]) => (
-                <span
-                  key={key}
-                  className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 tabular-nums"
-                >
-                  {key}: <span className="text-zinc-400">{type}</span>
-                </span>
-              ))}
-              {returnsEntries.length > 6 && (
-                <span className="font-mono text-[10px] px-1.5 py-0.5 text-zinc-400 tabular-nums">
-                  +{returnsEntries.length - 6} more
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 });
-

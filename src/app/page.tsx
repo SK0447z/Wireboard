@@ -14,18 +14,13 @@ import {
 import "@xyflow/react/dist/style.css";
 import {
   RotateCw,
-  FolderGit2,
-  CheckCircle2,
-  AlertTriangle,
-  AlertCircle,
-  Network,
-  Filter,
   Copy,
   Check,
   LayoutDashboard,
   ShieldAlert,
   History,
   Bot,
+  Network,
 } from "lucide-react";
 import { AnchorNodeCard } from "@/components/AnchorNodeCard";
 import { InspectorDrawer } from "@/components/InspectorDrawer";
@@ -79,7 +74,6 @@ export default function WireboardPage() {
 
   const nodeTypes = useMemo(() => ({ anchorNode: AnchorNodeCard }), []);
 
-  // Load history from localStorage on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
@@ -90,7 +84,7 @@ export default function WireboardPage() {
         }
       }
     } catch {
-      // Ignore localStorage errors
+      // ignore
     }
   }, []);
 
@@ -155,12 +149,10 @@ export default function WireboardPage() {
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
 
-        // Reset active selections
         setSelectedWire(null);
         setSelectedNode(null);
         setSelectedIssue(null);
 
-        // Save scan snapshot into persistent history
         saveToHistory(data, target);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Scanning failed");
@@ -189,7 +181,6 @@ export default function WireboardPage() {
     runScan(presetPath);
   };
 
-  // Restore snapshot from history
   const handleRestoreSnapshot = useCallback(
     (item: ScanHistoryItem) => {
       setGraph(item.graph);
@@ -230,7 +221,6 @@ export default function WireboardPage() {
     }
   }, []);
 
-  // Node Click (Triggers Blast Radius Highlighting)
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       const anchorNode = (node.data as unknown as AnchorNodeData)?.node;
@@ -266,7 +256,6 @@ export default function WireboardPage() {
     [graph, setNodes, setEdges]
   );
 
-  // Edge Click
   const handleEdgeClick = useCallback(
     (_: React.MouseEvent, edge: Edge) => {
       const wire = (edge.data as unknown as ContractEdgeData)?.wire;
@@ -296,7 +285,6 @@ export default function WireboardPage() {
     [setEdges, setNodes]
   );
 
-  // Canvas pane click -> deselect
   const handlePaneClick = useCallback(() => {
     setSelectedNode(null);
     setSelectedWire(null);
@@ -314,7 +302,6 @@ export default function WireboardPage() {
     );
   }, [setEdges, setNodes]);
 
-  // Select Issue from Drawer or diagnostics
   const handleSelectIssue = useCallback(
     (issue: DiagnosticIssue) => {
       setSelectedIssue(issue);
@@ -342,7 +329,6 @@ export default function WireboardPage() {
     [graph, setEdges, setNodes]
   );
 
-  // Clear Selection
   const handleClearSelection = useCallback(() => {
     setSelectedNode(null);
     setSelectedWire(null);
@@ -360,7 +346,6 @@ export default function WireboardPage() {
     );
   }, [setEdges, setNodes]);
 
-  // Calculate Contract Integrity Score and report
   const auditReport = useMemo(() => {
     if (!graph) return null;
     return generateContractReport(graph);
@@ -373,7 +358,6 @@ export default function WireboardPage() {
     setTimeout(() => setCopiedAudit(false), 2000);
   }, [auditReport]);
 
-  // Filter edges if "issues_only" active
   const filteredEdges = useMemo(() => {
     if (filterMode === "issues_only") {
       return edges.map((e) => ({
@@ -384,7 +368,6 @@ export default function WireboardPage() {
     return edges;
   }, [edges, filterMode]);
 
-  // Cross-view navigation helpers
   const handleNavigateToDiagnostics = (code?: string) => {
     setDiagnosticsFilterCode(code || null);
     setActiveTab("diagnostics");
@@ -414,7 +397,6 @@ export default function WireboardPage() {
     }
   };
 
-  // Find previous scan for delta comparison
   const priorScan = useMemo(() => {
     if (scanHistory.length <= 1) return null;
     const currentIdx = scanHistory.findIndex((s) => s.id === currentScanId);
@@ -436,173 +418,148 @@ export default function WireboardPage() {
         backgroundColor: "#09090b",
       }}
     >
-      {/* Top Control Bar */}
-      <header className="h-12 border-b border-white/10 px-4 flex items-center justify-between bg-[#09090b] z-30 shrink-0">
-        {/* Left: Brand & Path Controls */}
+      {/* Top Command Bar */}
+      <header className="h-11 border-b border-white/[0.07] px-3 flex items-center justify-between bg-[#0b0b0e] z-30 shrink-0">
+        {/* Left: Brand & Unified Toolbar Group */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 pr-2 border-r border-zinc-800">
-            <Network className="w-4 h-4 text-emerald-400 stroke-[1.75]" />
-            <span className="font-mono font-bold tracking-tight text-xs text-zinc-100">
+          <div className="flex items-center gap-2 pr-3 border-r border-white/[0.08]">
+            <span className="font-mono font-bold tracking-tight text-[12px] text-zinc-100">
               WIREBOARD
             </span>
           </div>
 
-          <form onSubmit={handleScanSubmit} className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#111115] border border-zinc-800 text-zinc-300">
-              <FolderGit2 className="w-3.5 h-3.5 text-zinc-400 stroke-[1.5]" />
-              <input
-                type="text"
-                value={pathInput}
-                onChange={(e) => setPathInput(e.target.value)}
-                placeholder="Local path or https://github.com/owner/repo..."
-                className="w-72 bg-transparent text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
-              />
-            </div>
+          <form onSubmit={handleScanSubmit} className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={pathInput}
+              onChange={(e) => setPathInput(e.target.value)}
+              placeholder="Local path or github repo..."
+              className="bg-[#070709] border border-white/[0.08] rounded-[4px] h-7 px-2.5 font-mono text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:outline-none w-60"
+            />
             <button
               type="submit"
               disabled={loading}
-              className="h-7 px-2.5 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-xs font-mono text-zinc-200 border border-zinc-700 transition-colors flex items-center gap-1.5"
+              className="h-7 px-2.5 rounded-[4px] bg-zinc-100 hover:bg-white disabled:opacity-40 text-zinc-950 font-medium text-[11px] font-mono transition-colors cursor-pointer"
             >
-              {loading ? (
-                <>
-                  <RotateCw className="w-3 h-3 animate-spin stroke-[1.5] text-zinc-400" />
-                  <span>Scanning AST...</span>
-                </>
-              ) : (
-                <span>Scan</span>
-              )}
+              {loading ? "Scanning..." : "Scan"}
             </button>
           </form>
 
-          {/* Preset Pills */}
-          <div className="flex items-center gap-1.5 pl-1 border-l border-zinc-800">
+          {/* Compact Presets */}
+          <div className="flex items-center gap-1 pl-1">
             <button
               type="button"
               onClick={() => handlePresetClick("test-fixtures/broken-app")}
               disabled={loading}
-              className={`h-7 px-2 rounded text-xs font-mono transition-colors border ${
+              className={`h-7 px-2 rounded-[4px] text-[11px] font-mono transition-colors border cursor-pointer ${
                 repoPath === "test-fixtures/broken-app"
-                  ? "bg-zinc-800 text-zinc-100 border-zinc-700 font-medium"
-                  : "bg-[#111115] text-zinc-400 border-zinc-800/80 hover:text-zinc-200 hover:border-zinc-700"
+                  ? "bg-white/[0.08] text-zinc-100 border-white/[0.16] font-medium"
+                  : "bg-transparent text-zinc-500 border-white/[0.06] hover:text-zinc-300 hover:bg-white/[0.03]"
               }`}
             >
-              Fixture: broken-app
+              broken-app
             </button>
             <button
               type="button"
               onClick={() => handlePresetClick(".")}
               disabled={loading}
-              className={`h-7 px-2 rounded text-xs font-mono transition-colors border ${
+              className={`h-7 px-2 rounded-[4px] text-[11px] font-mono transition-colors border cursor-pointer ${
                 repoPath === "."
-                  ? "bg-zinc-800 text-zinc-100 border-zinc-700 font-medium"
-                  : "bg-[#111115] text-zinc-400 border-zinc-800/80 hover:text-zinc-200 hover:border-zinc-700"
+                  ? "bg-white/[0.08] text-zinc-100 border-white/[0.16] font-medium"
+                  : "bg-transparent text-zinc-500 border-white/[0.06] hover:text-zinc-300 hover:bg-white/[0.03]"
               }`}
             >
-              Self-Scan: Wireboard
+              self
+            </button>
+            <button
+              onClick={() => runScan(repoPath)}
+              disabled={loading}
+              className="h-7 px-1.5 rounded-[4px] text-zinc-500 hover:text-zinc-300 border border-white/[0.06] hover:bg-white/[0.03] text-[11px] font-mono flex items-center transition-colors cursor-pointer"
+              title="Re-Scan Active Project"
+            >
+              <RotateCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
             </button>
           </div>
-
-          <button
-            onClick={() => runScan(repoPath)}
-            disabled={loading}
-            className="h-7 px-2.5 rounded bg-[#111115] hover:bg-zinc-800 disabled:opacity-50 text-xs font-mono text-zinc-300 border border-zinc-800 flex items-center gap-1.5 transition-colors"
-            title="Re-Scan Active Project"
-          >
-            <RotateCw
-              className={`w-3.5 h-3.5 stroke-[1.5] ${loading ? "animate-spin" : ""}`}
-            />
-            <span>Re-Scan</span>
-          </button>
         </div>
 
-        {/* Center / Right: Metrics & Filter Toggles */}
+        {/* Right: Quiet Segmented Status Bar & Actions */}
         {graph && (
-          <div className="flex items-center gap-3">
-            {/* Contract Integrity Score Badge */}
-            {auditReport && (
-              <span
-                className={`font-mono text-xs tabular-nums px-2.5 py-0.5 rounded border font-semibold flex items-center gap-1.5 ${
-                  auditReport.score === 100
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : auditReport.score >= 70
-                    ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                    : "bg-rose-500/10 border-rose-500/30 text-rose-400"
-                }`}
-                title="Contract Integrity Score"
-              >
-                Score: {auditReport.score}%
-              </span>
-            )}
-
-            {/* Status Counters */}
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-zinc-400 tabular-nums px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">
-                {graph.summary.totalNodes} Nodes
-              </span>
-
-              <span className="font-mono text-xs text-emerald-400 tabular-nums px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 stroke-[1.5]" />
+          <div className="flex items-center gap-2.5">
+            {/* Single Quiet Segmented Status Bar */}
+            <div className="flex items-center divide-x divide-white/[0.08] border border-white/[0.07] rounded-[4px] bg-[#070709] px-2 py-1 text-[11px] font-mono text-zinc-300 tabular-nums">
+              <span className="pr-2">{graph.summary.totalNodes} Nodes</span>
+              <span className="px-2 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
                 {graph.summary.verifiedWires} Verified
               </span>
-
-              <span className="font-mono text-xs text-amber-400 tabular-nums px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3 stroke-[1.5]" />
+              <span className="px-2 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
                 {graph.summary.suspiciousWires} Suspicious
               </span>
-
-              <span className="font-mono text-xs text-rose-400 tabular-nums px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3 stroke-[1.5]" />
+              <span className="px-2 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#EF4444]" />
                 {graph.summary.brokenWires} Broken
               </span>
+              {auditReport && (
+                <span className="pl-2 font-medium">
+                  Integrity{" "}
+                  <span
+                    className={
+                      auditReport.score === 100
+                        ? "text-emerald-400 font-semibold"
+                        : auditReport.score >= 70
+                        ? "text-amber-400 font-semibold"
+                        : "text-rose-400 font-semibold"
+                    }
+                  >
+                    {auditReport.score}%
+                  </span>
+                </span>
+              )}
             </div>
 
             {/* Copy Audit MD Button */}
             <button
               type="button"
               onClick={handleCopyAuditMd}
-              className={`h-7 px-2.5 rounded text-xs font-mono transition-colors border flex items-center gap-1.5 ${
-                copiedAudit
-                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                  : "bg-[#111115] hover:bg-zinc-800 text-zinc-300 border-zinc-800 hover:text-zinc-100"
-              }`}
+              className="h-7 px-2 rounded-[4px] text-[11px] font-mono text-zinc-400 hover:text-zinc-200 border border-white/[0.06] bg-[#0e0e11] hover:bg-white/[0.04] transition-colors flex items-center gap-1 cursor-pointer"
               title="Copy Audit Report in Markdown format to clipboard"
             >
               {copiedAudit ? (
                 <>
-                  <Check className="w-3.5 h-3.5 stroke-[2] text-emerald-400" />
-                  <span>Copied Audit MD</span>
+                  <Check className="w-3 h-3 text-emerald-400" />
+                  <span>Copied</span>
                 </>
               ) : (
                 <>
-                  <Copy className="w-3.5 h-3.5 stroke-[1.5] text-zinc-400" />
-                  <span>Copy Audit MD</span>
+                  <Copy className="w-3 h-3 text-zinc-500" />
+                  <span>Report</span>
                 </>
               )}
             </button>
 
-            {/* Filter Toggle (for Architecture view) */}
+            {/* Filter Toggle (when in architecture view) */}
             {activeTab === "architecture" && (
-              <div className="flex items-center rounded bg-[#111115] border border-zinc-800 p-0.5 text-xs font-mono">
+              <div className="flex items-center rounded-[4px] bg-[#070709] border border-white/[0.07] p-0.5 text-[10px] font-mono">
                 <button
                   onClick={() => setFilterMode("all")}
-                  className={`px-2 py-0.5 rounded transition-colors ${
+                  className={`px-2 py-0.5 rounded-[3px] transition-colors cursor-pointer ${
                     filterMode === "all"
-                      ? "bg-zinc-800 text-zinc-100 font-medium"
-                      : "text-zinc-400 hover:text-zinc-200"
+                      ? "bg-white/[0.08] text-zinc-100 font-medium"
+                      : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
-                  All Wires
+                  All
                 </button>
                 <button
                   onClick={() => setFilterMode("issues_only")}
-                  className={`px-2 py-0.5 rounded flex items-center gap-1 transition-colors ${
+                  className={`px-2 py-0.5 rounded-[3px] transition-colors cursor-pointer ${
                     filterMode === "issues_only"
-                      ? "bg-zinc-800 text-zinc-100 font-medium"
-                      : "text-zinc-400 hover:text-zinc-200"
+                      ? "bg-white/[0.08] text-zinc-100 font-medium"
+                      : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
-                  <Filter className="w-3 h-3 stroke-[1.5]" />
-                  Issues Only
+                  Issues
                 </button>
               </div>
             )}
@@ -610,105 +567,97 @@ export default function WireboardPage() {
         )}
       </header>
 
-      {/* Main Workspace: Left Navigation Rail + Active Control Room View */}
+      {/* Main Workspace */}
       <div className="flex flex-1 min-h-0 w-full relative overflow-hidden">
-        {/* Sleek Left-Rail Control Room Navigation */}
-        <nav className="w-44 border-r border-white/10 bg-[#0b0b0e] flex flex-col justify-between p-2 shrink-0 z-20">
-          <div className="space-y-1">
-            <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-semibold">
+        {/* Left Navigation Rail */}
+        <nav className="w-40 border-r border-white/[0.07] bg-[#0b0b0e] flex flex-col justify-between p-2 shrink-0 z-20">
+          <div className="space-y-0.5">
+            <div className="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-zinc-600 font-medium">
               Control Room
             </div>
 
-            {/* View 1: Architecture */}
             <button
               onClick={() => setActiveTab("architecture")}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded text-xs font-mono transition-all text-left ${
+              className={`w-full h-8 px-2.5 rounded-[4px] text-[12px] font-medium transition-colors flex items-center gap-2 cursor-pointer text-left ${
                 activeTab === "architecture"
-                  ? "bg-[#18181f] text-zinc-100 font-semibold border-l-2 border-emerald-400"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
+                  ? "bg-white/[0.06] text-zinc-100"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]"
               }`}
             >
-              <Network className="w-4 h-4 text-emerald-400 shrink-0" />
+              <Network className="w-3.5 h-3.5 shrink-0" />
               <span>Architecture</span>
             </button>
 
-            {/* View 2: Overview */}
             <button
               onClick={() => setActiveTab("overview")}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded text-xs font-mono transition-all text-left ${
+              className={`w-full h-8 px-2.5 rounded-[4px] text-[12px] font-medium transition-colors flex items-center gap-2 cursor-pointer text-left ${
                 activeTab === "overview"
-                  ? "bg-[#18181f] text-zinc-100 font-semibold border-l-2 border-emerald-400"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
+                  ? "bg-white/[0.06] text-zinc-100"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]"
               }`}
             >
-              <LayoutDashboard className="w-4 h-4 text-zinc-400 shrink-0" />
+              <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
               <span>Overview</span>
             </button>
 
-            {/* View 3: Diagnostics */}
             <button
               onClick={() => {
                 setDiagnosticsFilterCode(null);
                 setActiveTab("diagnostics");
               }}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded text-xs font-mono transition-all text-left ${
+              className={`w-full h-8 px-2.5 rounded-[4px] text-[12px] font-medium transition-colors flex items-center justify-between cursor-pointer text-left ${
                 activeTab === "diagnostics"
-                  ? "bg-[#18181f] text-zinc-100 font-semibold border-l-2 border-emerald-400"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
+                  ? "bg-white/[0.06] text-zinc-100"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]"
               }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
-                <span className="truncate">Diagnostics</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                <span>Diagnostics</span>
               </div>
               {graph && graph.issues.length > 0 && (
-                <span className="text-[10px] px-1 py-0.2 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 tabular-nums">
+                <span className="font-mono text-[10px] text-zinc-500 tabular-nums">
                   {graph.issues.length}
                 </span>
               )}
             </button>
 
-            {/* View 4: History */}
             <button
               onClick={() => setActiveTab("history")}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded text-xs font-mono transition-all text-left ${
+              className={`w-full h-8 px-2.5 rounded-[4px] text-[12px] font-medium transition-colors flex items-center justify-between cursor-pointer text-left ${
                 activeTab === "history"
-                  ? "bg-[#18181f] text-zinc-100 font-semibold border-l-2 border-emerald-400"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
+                  ? "bg-white/[0.06] text-zinc-100"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]"
               }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <History className="w-4 h-4 text-zinc-400 shrink-0" />
-                <span className="truncate">History</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <History className="w-3.5 h-3.5 shrink-0" />
+                <span>History</span>
               </div>
               {scanHistory.length > 0 && (
-                <span className="text-[10px] px-1 py-0.2 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 tabular-nums">
+                <span className="font-mono text-[10px] text-zinc-500 tabular-nums">
                   {scanHistory.length}
                 </span>
               )}
             </button>
 
-            {/* View 5: AI Architect */}
             <button
               onClick={() => setActiveTab("ai_architect")}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded text-xs font-mono transition-all text-left ${
+              className={`w-full h-8 px-2.5 rounded-[4px] text-[12px] font-medium transition-colors flex items-center gap-2 cursor-pointer text-left ${
                 activeTab === "ai_architect"
-                  ? "bg-[#18181f] text-zinc-100 font-semibold border-l-2 border-emerald-400"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
+                  ? "bg-white/[0.06] text-zinc-100"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]"
               }`}
             >
-              <Bot className="w-4 h-4 text-emerald-400 shrink-0" />
+              <Bot className="w-3.5 h-3.5 shrink-0" />
               <span>AI Architect</span>
             </button>
           </div>
 
-          {/* Rail Footer Telemetry */}
-          <div className="p-2 rounded bg-[#09090b] border border-zinc-800/80 font-mono text-[10px] text-zinc-500 space-y-1">
-            <div className="flex items-center justify-between">
-              <span>AST ENGINE</span>
-              <span className="text-emerald-400">ONLINE</span>
-            </div>
-            <div className="text-zinc-600 truncate">v2.0 • Pure TS</div>
+          {/* Rail Footer */}
+          <div className="px-2 py-1.5 font-mono text-[10px] text-zinc-600 flex items-center justify-between border-t border-white/[0.05]">
+            <span>AST v2</span>
+            <span>READY</span>
           </div>
         </nav>
 
@@ -721,40 +670,37 @@ export default function WireboardPage() {
             >
               {loading && (
                 <div className="absolute inset-0 bg-[#09090b]/80 backdrop-blur-xs flex items-center justify-center z-20">
-                  <div className="flex items-center gap-2.5 font-mono text-xs text-zinc-300">
-                    <RotateCw className="w-4 h-4 animate-spin stroke-[1.5] text-zinc-400" />
-                    Scanning architecture contracts...
+                  <div className="flex items-center gap-2 font-mono text-xs text-zinc-400">
+                    <RotateCw className="w-3.5 h-3.5 animate-spin text-zinc-500" />
+                    Scanning AST contracts...
                   </div>
                 </div>
               )}
 
               {error && (
-                <div className="absolute top-4 left-4 z-20 max-w-md p-3 rounded bg-[#181113]/95 border border-rose-800/60 text-rose-200 text-xs font-mono shadow-xl backdrop-blur-xs">
-                  <div className="font-bold flex items-center justify-between gap-2 mb-1.5 text-rose-300">
-                    <div className="flex items-center gap-1.5">
-                      <AlertCircle className="w-3.5 h-3.5 text-rose-400 stroke-[1.75]" />
-                      <span>Scan Error</span>
-                    </div>
+                <div className="absolute top-4 left-4 z-20 max-w-md p-3 rounded-[4px] bg-[#141418] border border-rose-500/30 text-rose-300 text-xs font-mono shadow-2xl">
+                  <div className="font-semibold flex items-center justify-between gap-2 mb-1">
+                    <span>Scan Error</span>
                     <button
                       onClick={() => setError(null)}
-                      className="text-zinc-500 hover:text-zinc-300 text-[10px] uppercase font-mono px-1 rounded hover:bg-zinc-800/50 transition-colors"
+                      className="text-zinc-500 hover:text-zinc-300 text-[10px] uppercase font-mono px-1 rounded hover:bg-white/[0.04]"
                     >
                       Dismiss
                     </button>
                   </div>
-                  <div className="text-zinc-300 leading-relaxed break-words">{error}</div>
+                  <div className="text-zinc-400 leading-relaxed break-words">{error}</div>
                 </div>
               )}
 
-              {/* Swimlane Column Labels Overlay */}
-              <div className="absolute top-3 left-14 right-4 pointer-events-none z-10 flex gap-4 font-mono text-[10px] tracking-wider uppercase text-zinc-500 font-semibold select-none">
-                <div className="w-[340px] px-2 py-1 rounded bg-[#09090b]/80 border border-zinc-800/60 backdrop-blur-xs">
+              {/* Minimal Swimlane Column Labels Overlay */}
+              <div className="absolute top-3 left-14 right-4 pointer-events-none z-10 flex gap-4 font-mono text-[10px] tracking-wider uppercase text-zinc-500 font-medium select-none">
+                <div className="w-[260px] px-2 py-0.5 rounded-[3px] bg-[#09090b]/90 border border-white/[0.06]">
                   1. FRONTEND CONSUMERS
                 </div>
-                <div className="w-[340px] px-2 py-1 rounded bg-[#09090b]/80 border border-zinc-800/60 backdrop-blur-xs ml-[120px]">
+                <div className="w-[260px] px-2 py-0.5 rounded-[3px] bg-[#09090b]/90 border border-white/[0.06] ml-[140px]">
                   2. API ROUTES & ACTIONS
                 </div>
-                <div className="w-[340px] px-2 py-1 rounded bg-[#09090b]/80 border border-zinc-800/60 backdrop-blur-xs ml-[120px]">
+                <div className="w-[260px] px-2 py-0.5 rounded-[3px] bg-[#09090b]/90 border border-white/[0.06] ml-[140px]">
                   3. DATABASE & STORAGE
                 </div>
               </div>
@@ -773,9 +719,9 @@ export default function WireboardPage() {
                 maxZoom={1.5}
                 proOptions={{ hideAttribution: true }}
               >
-                <Background color="#27272a" gap={20} size={1} />
+                <Background color="#1e1e24" gap={20} size={1} />
                 <Controls
-                  className="!bg-[#111115] !border-zinc-800 !fill-zinc-400 [&>button]:!border-zinc-800 hover:[&>button]:!bg-zinc-800 [&>button]:!bg-transparent"
+                  className="!bg-[#0c0c0e] !border-white/[0.07] !fill-zinc-400 [&>button]:!border-white/[0.06] hover:[&>button]:!bg-white/[0.06] [&>button]:!bg-transparent"
                   showInteractive={false}
                 />
                 <MiniMap
@@ -783,11 +729,11 @@ export default function WireboardPage() {
                     const status = (node.data as unknown as AnchorNodeData)?.status;
                     if (status === "BROKEN") return "#EF4444";
                     if (status === "SUSPICIOUS") return "#F59E0B";
-                    return "#27272a";
+                    return "#1e1e24";
                   }}
                   nodeStrokeWidth={2}
-                  className="!bg-[#0d0d10] !border !border-zinc-800/80 !rounded"
-                  maskColor="rgba(9, 9, 11, 0.75)"
+                  className="!bg-[#0c0c0e] !border !border-white/[0.07] !rounded-[4px]"
+                  maskColor="rgba(9, 9, 11, 0.8)"
                 />
               </ReactFlow>
             </div>

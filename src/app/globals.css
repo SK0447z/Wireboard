@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --font-sans: var(--font-sans, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  --font-mono: var(--font-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, monospace);
+}
+
 html,
 body {
   height: 100%;
@@ -10,8 +15,41 @@ body {
   padding: 0;
   background-color: #09090b;
   color: #f4f4f5;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+  letter-spacing: -0.015em;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code,
+kbd,
+samp,
+pre,
+.font-mono {
+  font-family: var(--font-mono) !important;
+  letter-spacing: -0.01em;
+}
+
+/* Ultra-thin unobtrusive scrollbars */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1f1f23;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2e2e33;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1f1f23 transparent;
 }
 
 .react-flow__attribution {
