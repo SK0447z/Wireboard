@@ -36,6 +36,37 @@ describe("layoutGraph with Dagre", () => {
     expect(maxBackendX).toBeLessThan(minDbX);
   });
 
+  it("positions SERVER_ACTION in middle column and EXTERNAL_SERVICE in right column", () => {
+    const mockGraph = {
+      ...graph,
+      nodes: [
+        ...graph.nodes,
+        {
+          id: "server-action-1",
+          kind: "SERVER_ACTION" as const,
+          label: "submitFormAction",
+          filePath: "app/actions.ts",
+          line: 10,
+        },
+        {
+          id: "external-service-1",
+          kind: "EXTERNAL_SERVICE" as const,
+          label: "Stripe API",
+          filePath: "lib/stripe.ts",
+          line: 5,
+        },
+      ],
+    };
+
+    const { nodes } = layoutGraph(mockGraph);
+    const actionNode = nodes.find((n) => n.id === "server-action-1")!;
+    const externalNode = nodes.find((n) => n.id === "external-service-1")!;
+    const frontendNode = nodes.find((n) => n.data.node.kind === "FRONTEND_COMPONENT")!;
+
+    expect(actionNode.position.x).toBeGreaterThan(frontendNode.position.x);
+    expect(externalNode.position.x).toBeGreaterThan(actionNode.position.x);
+  });
+
   it("styles edges according to wire status", () => {
     const brokenStyle = getEdgeStyle("BROKEN");
     expect(brokenStyle.stroke).toBe("#EF4444");
