@@ -119,4 +119,82 @@ describe("scanFrontendComponents", () => {
     expect(membersSupabase?.operation).toBe("insert");
     expect(membersSupabase?.columns).toEqual(["team_id", "role"]);
   });
+
+  it("extracts destructured responses, useState setters, axios calls, error handling, and external services", () => {
+    const project = new Project({
+      skipAddingFilesFromTsConfig: true,
+      compilerOptions: { allowJs: true, jsx: 2 },
+    });
+
+    project.createSourceFile(
+      "src/components/AdvancedConsumer.tsx",
+      `
+      import React, { useState } from "react";
+      export function AdvancedConsumer() {
+        const [profile, setProfile] = useState<any>(null);
+
+        async function loadProfile() {
+          try {
+            const res = await fetch("/api/profile");
+            const data = await res.json();
+            setProfile(data);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        async function createSession() {
+          const res = await fetch("/api/session", {
+            method: "POST",
+            body: JSON.stringify({ email: "test@example.com", remember: true }),
+          });
+          const { sessionId, token } = await res.json();
+          return { sessionId, token };
+        }
+
+        async function callAxios() {
+          const res = await axios.post("/api/checkout", { amount: 100 });
+          return res.data.checkoutUrl;
+        }
+
+        async function callExternal() {
+          await fetch("https://api.stripe.com/v1/customers");
+          await stripe.paymentIntents.create({ amount: 50 });
+        }
+
+        return <div>{profile?.displayName} ({profile?.email})</div>;
+      }
+      `
+    );
+
+    const result = scanFrontendComponents(project, path.resolve("src"));
+    const compNode = result.nodes.find((n) => n.id === "fe:AdvancedConsumer.tsx");
+    expect(compNode).toBeDefined();
+
+    // 1. Profile fetch: inside try/catch -> hasErrorHandling = true; useState tracing -> displayName, email
+    const profileCall = result.fetchCalls.find((c) => c.url === "/api/profile");
+    expect(profileCall).toBeDefined();
+    expect(profileCall?.hasErrorHandling).toBe(true);
+    expect(profileCall?.expectsResponseFields).toContain("displayName");
+    expect(profileCall?.expectsResponseFields).toContain("email");
+
+    // 2. Session fetch: destructured response { sessionId, token } + no try/catch -> hasErrorHandling = false
+    const sessionCall = result.fetchCalls.find((c) => c.url === "/api/session");
+    expect(sessionCall).toBeDefined();
+    expect(sessionCall?.hasErrorHandling).toBe(false);
+    expect(sessionCall?.expectsResponseFields).toContain("sessionId");
+    expect(sessionCall?.expectsResponseFields).toContain("token");
+    expect(sessionCall?.sentBodyFields).toEqual(["email", "remember"]);
+
+    // 3. Axios post
+    const axiosCall = result.fetchCalls.find((c) => c.url === "/api/checkout");
+    expect(axiosCall).toBeDefined();
+    expect(axiosCall?.method).toBe("POST");
+    expect(axiosCall?.sentBodyFields).toEqual(["amount"]);
+    expect(axiosCall?.expectsResponseFields).toContain("checkoutUrl");
+
+    // 4. External services
+    const stripeExt = result.externalServices.find((e) => e.serviceName === "stripe");
+    expect(stripeExt).toBeDefined();
+  });
 });

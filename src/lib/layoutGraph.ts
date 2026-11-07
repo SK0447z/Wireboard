@@ -108,7 +108,7 @@ export function layoutGraph(graph: ArchitectureGraph): {
     const colIndex =
       node.kind === "FRONTEND_COMPONENT"
         ? 0
-        : node.kind === "BACKEND_ROUTE"
+        : node.kind === "BACKEND_ROUTE" || node.kind === "SERVER_ACTION"
         ? 1
         : 2;
     columnNodes[colIndex].push(node);

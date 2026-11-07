@@ -10,8 +10,12 @@ function kindBadge(kind: string) {
       return "FRONTEND";
     case "BACKEND_ROUTE":
       return "API ROUTE";
+    case "SERVER_ACTION":
+      return "SERVER ACTION";
     case "DB_TABLE":
       return "DB TABLE";
+    case "EXTERNAL_SERVICE":
+      return "EXTERNAL API";
     default:
       return kind;
   }

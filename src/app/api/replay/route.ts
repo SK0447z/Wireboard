@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
       statusText: response.statusText || (response.status === 200 ? "OK" : `HTTP ${response.status}`),
       durationMs,
       data: parsedData,
+      error: undefined,
     });
   } catch (err) {
     const durationMs = Math.round(performance.now() - startTime);

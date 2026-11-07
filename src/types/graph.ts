@@ -6,9 +6,14 @@ export type WireStatus = z.infer<typeof WireStatusSchema>;
 export const NodeKindSchema = z.enum([
   "FRONTEND_COMPONENT",
   "BACKEND_ROUTE",
+  "SERVER_ACTION",
   "DB_TABLE",
+  "EXTERNAL_SERVICE",
 ]);
 export type NodeKind = z.infer<typeof NodeKindSchema>;
+
+export const ConfidenceSchema = z.enum(["HIGH", "MEDIUM", "LOW"]);
+export type Confidence = z.infer<typeof ConfidenceSchema>;
 
 export const HttpMethodSchema = z.enum([
   "GET",
@@ -21,10 +26,14 @@ export type HttpMethod = z.infer<typeof HttpMethodSchema>;
 
 export const DiagnosticCodeSchema = z.enum([
   "FIELD_MISMATCH",
-  "MISSING_ENDPOINT",
-  "SWALLOWED_ERROR",
-  "TYPE_CHEAT",
+  "REQUEST_MISMATCH",
   "SCHEMA_DRIFT",
+  "MISSING_ENDPOINT",
+  "DEAD_ENDPOINT",
+  "TYPE_CHEAT",
+  "SWALLOWED_ERROR",
+  "MISSING_ERROR_HANDLING",
+  "UNCHECKED_DB_ERROR",
   "ENV_DRIFT",
 ]);
 export type DiagnosticCode = z.infer<typeof DiagnosticCodeSchema>;
@@ -42,6 +51,7 @@ export const AnchorNodeSchema = z.object({
   routePath: z.string().optional(),
   expectsPayload: FieldShapeSchema.optional(),
   returnsPayload: FieldShapeSchema.optional(),
+  codeSnippet: z.string().optional(),
 });
 export type AnchorNode = z.infer<typeof AnchorNodeSchema>;
 
@@ -50,12 +60,15 @@ export const DiagnosticIssueSchema = z.object({
   wireId: z.string(),
   severity: WireStatusSchema,
   code: DiagnosticCodeSchema,
+  confidence: ConfidenceSchema.default("HIGH"),
   title: z.string(),
   explanation: z.string(),
   sourceFile: z.string(),
   sourceLine: z.number(),
   targetFile: z.string().optional(),
   targetLine: z.number().optional(),
+  sourceSnippet: z.string().optional(),
+  targetSnippet: z.string().optional(),
   expectedShape: FieldShapeSchema.optional(),
   actualShape: FieldShapeSchema.optional(),
   repairPrompt: z.string(),

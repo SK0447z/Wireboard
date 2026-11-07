@@ -18,7 +18,9 @@ export interface BlastRadiusResult {
 
 const ROLE_RANKS: Record<string, number> = {
   DB_TABLE: 1,
+  EXTERNAL_SERVICE: 1,
   BACKEND_ROUTE: 2,
+  SERVER_ACTION: 2,
   FRONTEND_COMPONENT: 3,
 };
 
@@ -26,8 +28,12 @@ function getRoleLabel(kind: string): string {
   switch (kind) {
     case "DB_TABLE":
       return "Database";
+    case "EXTERNAL_SERVICE":
+      return "External Service";
     case "BACKEND_ROUTE":
       return "Backend Route";
+    case "SERVER_ACTION":
+      return "Server Action";
     case "FRONTEND_COMPONENT":
       return "Frontend Consumer";
     default:

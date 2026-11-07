@@ -19,6 +19,9 @@ export interface FrontendFetchCall {
   expectsResponseFields: string[];
   responseVarLine?: number;
   sentBodyFields?: string[];
+  hasErrorHandling: boolean;
+  isExternal?: boolean;
+  externalService?: string;
 }
 
 export interface SupabaseInteraction {
@@ -37,12 +40,31 @@ export interface FrontendEnvAccess {
   filePath: string;
 }
 
+export interface ExternalServiceCall {
+  sourceNodeId: string;
+  serviceName: string;
+  urlOrTarget: string;
+  line: number;
+  filePath: string;
+}
+
 export interface ScanFrontendResult {
   nodes: AnchorNode[];
   fetchCalls: FrontendFetchCall[];
   supabaseInteractions: SupabaseInteraction[];
   envUsages: FrontendEnvAccess[];
+  externalServices: ExternalServiceCall[];
 }
+
+const EXTERNAL_SDK_PREFIXES = [
+  "stripe",
+  "resend",
+  "openai",
+  "anthropic",
+  "twilio",
+  "sendgrid",
+  "postmark",
+];
 
 function extractUrlFromNode(argNode: Node, sf: SourceFile): string {
   if (Node.isStringLiteral(argNode)) {
@@ -88,37 +110,19 @@ function extractUrlFromNode(argNode: Node, sf: SourceFile): string {
   return argNode.getText().replace(/['"`]/g, "");
 }
 
-function extractSentBodyKeys(callNode: Node, sf: SourceFile): string[] {
-  const args = Node.isCallExpression(callNode) ? callNode.getArguments() : [];
-  if (args.length < 2 || !Node.isObjectLiteralExpression(args[1])) {
-    return [];
-  }
-
-  const bodyProp = args[1].getProperty("body");
-  if (!bodyProp || !Node.isPropertyAssignment(bodyProp)) {
-    return [];
-  }
-
-  const init = bodyProp.getInitializer();
-  if (!init || !Node.isCallExpression(init)) {
-    return [];
-  }
-
-  const callExprText = init.getExpression().getText();
-  if (callExprText !== "JSON.stringify" && !callExprText.endsWith(".stringify")) {
-    return [];
-  }
-
-  const stringifyArgs = init.getArguments();
-  if (stringifyArgs.length === 0) {
-    return [];
-  }
-
-  const payloadArg = stringifyArgs[0];
+function extractKeysFromObjectLiteralOrVar(
+  targetNode: Node,
+  sf: SourceFile
+): string[] {
   const keys: string[] = [];
 
-  if (Node.isObjectLiteralExpression(payloadArg)) {
-    for (const prop of payloadArg.getProperties()) {
+  let nodeToInspect: Node = targetNode;
+  if (Node.isAwaitExpression(targetNode)) {
+    nodeToInspect = targetNode.getExpression();
+  }
+
+  if (Node.isObjectLiteralExpression(nodeToInspect)) {
+    for (const prop of nodeToInspect.getProperties()) {
       if (
         Node.isPropertyAssignment(prop) ||
         Node.isShorthandPropertyAssignment(prop)
@@ -126,9 +130,12 @@ function extractSentBodyKeys(callNode: Node, sf: SourceFile): string[] {
         keys.push(prop.getName());
       }
     }
-  } else if (Node.isIdentifier(payloadArg)) {
-    const varName = payloadArg.getText();
-    let current: Node | undefined = init;
+    return keys;
+  }
+
+  if (Node.isIdentifier(nodeToInspect)) {
+    const varName = nodeToInspect.getText();
+    let current: Node | undefined = nodeToInspect;
     let decl: VariableDeclaration | undefined;
 
     while (current && !decl) {
@@ -145,19 +152,58 @@ function extractSentBodyKeys(callNode: Node, sf: SourceFile): string[] {
     }
 
     const varInit = decl?.getInitializer();
-    if (varInit && Node.isObjectLiteralExpression(varInit)) {
-      for (const prop of varInit.getProperties()) {
-        if (
-          Node.isPropertyAssignment(prop) ||
-          Node.isShorthandPropertyAssignment(prop)
-        ) {
-          keys.push(prop.getName());
-        }
-      }
+    if (varInit) {
+      return extractKeysFromObjectLiteralOrVar(varInit, sf);
     }
   }
 
   return keys;
+}
+
+function extractSentBodyKeys(callNode: Node, sf: SourceFile): string[] {
+  if (!Node.isCallExpression(callNode)) return [];
+  const args = callNode.getArguments();
+  const callExpr = callNode.getExpression();
+  const callText = callExpr.getText();
+
+  // Axios methods: axios.post(url, data), axios.put(url, data), axios.patch(url, data)
+  if (
+    callText === "axios.post" ||
+    callText === "axios.put" ||
+    callText === "axios.patch" ||
+    callText.endsWith(".post") ||
+    callText.endsWith(".put") ||
+    callText.endsWith(".patch")
+  ) {
+    if (args.length >= 2) {
+      return extractKeysFromObjectLiteralOrVar(args[1], sf);
+    }
+  }
+
+  // Standard fetch: fetch(url, { body: JSON.stringify(...) })
+  if (args.length < 2 || !Node.isObjectLiteralExpression(args[1])) {
+    return [];
+  }
+
+  const bodyProp = args[1].getProperty("body");
+  if (!bodyProp || !Node.isPropertyAssignment(bodyProp)) {
+    return [];
+  }
+
+  const init = bodyProp.getInitializer();
+  if (!init) return [];
+
+  if (Node.isCallExpression(init)) {
+    const callExprText = init.getExpression().getText();
+    if (callExprText === "JSON.stringify" || callExprText.endsWith(".stringify")) {
+      const stringifyArgs = init.getArguments();
+      if (stringifyArgs.length > 0) {
+        return extractKeysFromObjectLiteralOrVar(stringifyArgs[0], sf);
+      }
+    }
+  }
+
+  return extractKeysFromObjectLiteralOrVar(init, sf);
 }
 
 function extractSupabaseInteractionsFromScope(
@@ -191,7 +237,6 @@ function extractSupabaseInteractionsFromScope(
     const columns: string[] = [];
     let interactionLine = call.getStartLineNumber();
 
-    // Trace up the call chain
     let curr: Node = call;
     while (curr.getParent() && Node.isPropertyAccessExpression(curr.getParent())) {
       const propAccess = curr.getParent() as import("ts-morph").PropertyAccessExpression;
@@ -278,6 +323,27 @@ function extractSupabaseInteractionsFromScope(
   return interactions;
 }
 
+function isServiceExternal(url: string): { isExternal: boolean; serviceName?: string } {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    try {
+      const parsed = new URL(url);
+      const hostname = parsed.hostname.toLowerCase();
+      if (hostname === "localhost" || hostname === "127.0.0.1") {
+        return { isExternal: false };
+      }
+      for (const prefix of EXTERNAL_SDK_PREFIXES) {
+        if (hostname.includes(prefix)) {
+          return { isExternal: true, serviceName: prefix };
+        }
+      }
+      return { isExternal: true, serviceName: hostname };
+    } catch {
+      return { isExternal: true, serviceName: "external" };
+    }
+  }
+  return { isExternal: false };
+}
+
 export function scanFrontendComponents(
   project: Project,
   projectRoot: string
@@ -318,6 +384,7 @@ export function scanFrontendComponents(
   const fetchCalls: FrontendFetchCall[] = [];
   const supabaseInteractions: SupabaseInteraction[] = [];
   const envUsages: FrontendEnvAccess[] = [];
+  const externalServices: ExternalServiceCall[] = [];
 
   for (const sf of frontendFiles) {
     const relPath = path.relative(normalizedRoot, sf.getFilePath()).replace(/\\/g, "/");
@@ -327,7 +394,6 @@ export function scanFrontendComponents(
     let compName = baseName.replace(/\.[tj]sx$/, "");
     let compLine = 1;
 
-    // Check exported functions or variables
     const exportedDeclarations = sf.getExportedDeclarations();
     for (const [name, decls] of exportedDeclarations) {
       if (/^[A-Z]/.test(name) && decls.length > 0) {
@@ -338,7 +404,6 @@ export function scanFrontendComponents(
     }
 
     if (compLine === 1) {
-      // Fallback: check function declarations in file
       const funcs = sf.getFunctions();
       for (const fn of funcs) {
         const name = fn.getName();
@@ -360,7 +425,7 @@ export function scanFrontendComponents(
     };
     nodes.push(compNode);
 
-    // Extract Supabase interactions from component file
+    // Extract Supabase interactions
     const sfSupabase = extractSupabaseInteractionsFromScope(sf, componentNodeId, relPath);
     supabaseInteractions.push(...sfSupabase);
 
@@ -383,20 +448,87 @@ export function scanFrontendComponents(
       }
     }
 
-    // Find fetch calls
-    const calls = sf.getDescendantsOfKind(SyntaxKind.CallExpression);
-    for (const call of calls) {
+    // Map React useState setters to state variable names: setterName -> stateVarName
+    const stateMap = new Map<string, string>();
+    const sfVarDecls = sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration);
+    for (const vd of sfVarDecls) {
+      const init = vd.getInitializer();
+      if (init && Node.isCallExpression(init)) {
+        const callee = init.getExpression().getText();
+        if (callee === "useState" || callee === "React.useState") {
+          const nameNode = vd.getNameNode();
+          if (Node.isArrayBindingPattern(nameNode)) {
+            const elems = nameNode.getElements();
+            if (elems.length >= 2) {
+              const stateVar = elems[0].getText();
+              const setter = elems[1].getText();
+              stateMap.set(setter, stateVar);
+            }
+          }
+        }
+      }
+    }
+
+    // Check external SDK calls in the component
+    const sfCalls = sf.getDescendantsOfKind(SyntaxKind.CallExpression);
+    for (const c of sfCalls) {
+      const cExpr = c.getExpression();
+      if (Node.isPropertyAccessExpression(cExpr)) {
+        let root = cExpr.getExpression();
+        while (Node.isPropertyAccessExpression(root)) {
+          root = root.getExpression();
+        }
+        const rootName = root.getText().toLowerCase();
+        if (EXTERNAL_SDK_PREFIXES.includes(rootName)) {
+          externalServices.push({
+            sourceNodeId: componentNodeId,
+            serviceName: rootName,
+            urlOrTarget: cExpr.getText(),
+            line: c.getStartLineNumber(),
+            filePath: relPath,
+          });
+        }
+      }
+    }
+
+    // Scan network calls (fetch and axios)
+    for (const call of sfCalls) {
       const callExpr = call.getExpression();
-      if (callExpr.getText() !== "fetch") continue;
+      const callText = callExpr.getText();
+
+      const isFetch = callText === "fetch";
+      const isAxios =
+        callText === "axios" ||
+        callText.startsWith("axios.") ||
+        callText.endsWith(".axios");
+
+      if (!isFetch && !isAxios) continue;
 
       const args = call.getArguments();
       if (args.length === 0) continue;
 
-      // Extract URL (handling StringLiteral, NoSubstitutionTemplateLiteral, TemplateExpression, Identifiers)
+      // Extract URL
       const url = extractUrlFromNode(args[0], sf);
+      const { isExternal, serviceName } = isServiceExternal(url);
+      if (isExternal && serviceName) {
+        externalServices.push({
+          sourceNodeId: componentNodeId,
+          serviceName,
+          urlOrTarget: url,
+          line: call.getStartLineNumber(),
+          filePath: relPath,
+        });
+      }
 
       // Extract HTTP method
       let method: HttpMethod = "GET";
+      if (isAxios) {
+        if (callText === "axios.post") method = "POST";
+        else if (callText === "axios.put") method = "PUT";
+        else if (callText === "axios.patch") method = "PATCH";
+        else if (callText === "axios.delete") method = "DELETE";
+      }
+
       if (args.length >= 2 && Node.isObjectLiteralExpression(args[1])) {
         const methodProp = args[1].getProperty("method");
         if (methodProp && Node.isPropertyAssignment(methodProp)) {
@@ -424,22 +556,57 @@ export function scanFrontendComponents(
       let hasTypeCheat = false;
       let typeCheatLine: number | undefined;
       let responseVarLine: number | undefined;
-      const expectsResponseFields: string[] = [];
+      const readFields = new Set<string>();
+
+      // Check if call is wrapped in try/catch
+      const isInsideTry = call.getFirstAncestorByKind(SyntaxKind.TryStatement) !== undefined;
 
       // Determine response variable name (e.g. const res = await fetch(...))
       let resVarName: string | null = null;
       const parentVarDecl = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
       if (parentVarDecl) {
-        resVarName = parentVarDecl.getName();
+        const nameNode = parentVarDecl.getNameNode();
+        if (Node.isIdentifier(nameNode)) {
+          resVarName = nameNode.getText();
+        } else if (Node.isObjectBindingPattern(nameNode)) {
+          // Destructuring direct axios call: const { data } = await axios.get(...)
+          for (const elem of nameNode.getElements()) {
+            if (elem.getName() === "data") {
+              const boundName = elem.getNameNode().getText();
+              resVarName = boundName;
+            } else {
+              readFields.add(elem.getName());
+            }
+          }
+        }
       }
 
-      // Find enclosing scope to search for res.json() and data property accesses
+      // Find enclosing scope
       const enclosingScope =
         call.getFirstAncestorByKind(SyntaxKind.Block) ||
         call.getFirstAncestorByKind(SyntaxKind.FunctionDeclaration) ||
         sf;
 
-      // Find res.json() calls
+      // Check for error handling on resVarName (e.g. if (!res.ok) or res.status)
+      let checkedResStatus = false;
+      if (resVarName) {
+        const scopePropAccesses = enclosingScope.getDescendantsOfKind(
+          SyntaxKind.PropertyAccessExpression
+        );
+        for (const pa of scopePropAccesses) {
+          if (pa.getExpression().getText() === resVarName) {
+            const propName = pa.getName();
+            if (propName === "ok" || propName === "status" || propName === "statusText") {
+              checkedResStatus = true;
+              break;
+            }
+          }
+        }
+      }
+
+      const hasErrorHandling = isInsideTry || checkedResStatus;
+
+      // Find response body processing
       const innerCalls = enclosingScope.getDescendantsOfKind(SyntaxKind.CallExpression);
       let dataVarName: string | null = null;
 
@@ -468,29 +635,105 @@ export function scanFrontendComponents(
             }
           }
 
-          // Find variable receiving .json()
+          // Variable receiving .json()
           const jsonVarDecl = (asExpr || ic).getFirstAncestorByKind(
             SyntaxKind.VariableDeclaration
           );
           if (jsonVarDecl) {
-            dataVarName = jsonVarDecl.getName();
             responseVarLine = jsonVarDecl.getStartLineNumber();
+            const nameNode = jsonVarDecl.getNameNode();
+
+            // Destructured pattern: const { userId, token } = await res.json()
+            if (Node.isObjectBindingPattern(nameNode)) {
+              for (const elem of nameNode.getElements()) {
+                const pName = elem.getName();
+                if (pName) readFields.add(pName);
+              }
+            } else if (Node.isIdentifier(nameNode)) {
+              dataVarName = nameNode.getText();
+            }
+          }
+
+          // Direct state setter call: setUser(await res.json())
+          const directCall = (asExpr || ic).getFirstAncestorByKind(SyntaxKind.CallExpression);
+          if (directCall && directCall !== ic) {
+            const calleeName = directCall.getExpression().getText();
+            const stateVar = stateMap.get(calleeName);
+            if (stateVar) {
+              const compProps = sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
+              for (const p of compProps) {
+                if (p.getExpression().getText() === stateVar) {
+                  readFields.add(p.getName());
+                }
+              }
+            }
           }
         }
       }
 
-      // Trace read properties on data variable
+      // If dataVarName was assigned, trace accesses in enclosingScope and React state
       if (dataVarName) {
+        // 1. Direct property accesses: data.userId
         const propAccesses = enclosingScope.getDescendantsOfKind(
           SyntaxKind.PropertyAccessExpression
         );
-        const readFields = new Set<string>();
         for (const prop of propAccesses) {
           if (prop.getExpression().getText() === dataVarName) {
             readFields.add(prop.getName());
           }
         }
-        expectsResponseFields.push(...readFields);
+
+        // 2. Destructuring from data: const { userId } = data
+        const scopeVarDecls = enclosingScope.getDescendantsOfKind(
+          SyntaxKind.VariableDeclaration
+        );
+        for (const vd of scopeVarDecls) {
+          if (vd.getInitializer()?.getText() === dataVarName) {
+            const nameNode = vd.getNameNode();
+            if (Node.isObjectBindingPattern(nameNode)) {
+              for (const elem of nameNode.getElements()) {
+                readFields.add(elem.getName());
+              }
+            }
+          }
+        }
+
+        // 3. React useState setter: setUser(data) -> trace user.<prop>
+        for (const [setterName, stateVar] of stateMap.entries()) {
+          const setterCalls = enclosingScope.getDescendantsOfKind(
+            SyntaxKind.CallExpression
+          );
+          for (const sc of setterCalls) {
+            if (
+              sc.getExpression().getText() === setterName &&
+              sc.getArguments().some((a) => a.getText() === dataVarName)
+            ) {
+              const compProps = sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
+              for (const p of compProps) {
+                if (p.getExpression().getText() === stateVar) {
+                  readFields.add(p.getName());
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // If Axios call: res.data.<key>
+      if (isAxios && resVarName) {
+        const propAccesses = enclosingScope.getDescendantsOfKind(
+          SyntaxKind.PropertyAccessExpression
+        );
+        for (const prop of propAccesses) {
+          const expr = prop.getExpression();
+          if (
+            Node.isPropertyAccessExpression(expr) &&
+            expr.getExpression().getText() === resVarName &&
+            expr.getName() === "data"
+          ) {
+            readFields.add(prop.getName());
+          }
+        }
       }
 
       fetchCalls.push({
@@ -500,12 +743,15 @@ export function scanFrontendComponents(
         fetchLine,
         hasTypeCheat,
         typeCheatLine,
-        expectsResponseFields,
+        expectsResponseFields: Array.from(readFields),
         responseVarLine,
         sentBodyFields: sentBodyFields.length > 0 ? sentBodyFields : undefined,
+        hasErrorHandling,
+        isExternal,
+        externalService: serviceName,
       });
     }
   }
 
-  return { nodes, fetchCalls, supabaseInteractions, envUsages };
+  return { nodes, fetchCalls, supabaseInteractions, envUsages, externalServices };
 }

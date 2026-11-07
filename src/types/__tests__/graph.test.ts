@@ -87,6 +87,7 @@ describe("ArchitectureGraph Schema", () => {
               wireId: "wire:fe-reg-api-reg",
               severity: "BROKEN",
               code: "FIELD_MISMATCH",
+              confidence: "HIGH",
               title: "Payload key mismatch: userId vs user_id",
               explanation:
                 "RegisterForm reads `userId` and `sessionToken` from response, but /api/register returns `user_id` and `token`.",
@@ -104,6 +105,7 @@ describe("ArchitectureGraph Schema", () => {
               wireId: "wire:fe-reg-api-reg",
               severity: "SUSPICIOUS",
               code: "TYPE_CHEAT",
+              confidence: "HIGH",
               title: "Type assertion `as any` at network boundary",
               explanation:
                 "RegisterForm casts response to `any`, masking contract drift.",
@@ -126,6 +128,7 @@ describe("ArchitectureGraph Schema", () => {
               wireId: "wire:api-reg-db-user",
               severity: "BROKEN",
               code: "SCHEMA_DRIFT",
+              confidence: "HIGH",
               title: "Column mismatch: subscriptionTier vs subscription_tier",
               explanation:
                 "Backend route writes `subscriptionTier`, but Prisma schema defines `subscription_tier`.",
@@ -160,6 +163,7 @@ describe("ArchitectureGraph Schema", () => {
               wireId: "wire:fe-proj-api-delete",
               severity: "BROKEN",
               code: "MISSING_ENDPOINT",
+              confidence: "HIGH",
               title: "Call to non-existent route /api/v1/projects/delete",
               explanation:
                 "ProjectList calls DELETE /api/v1/projects/delete, but no matching route handler exists.",
@@ -242,6 +246,60 @@ describe("ArchitectureGraph Schema", () => {
         repairPrompt: "Declare variable in .env.example",
       })
     ).not.toThrow();
+
+    // Verify all 10 diagnostic codes parse and confidence defaults to HIGH
+    const codes = [
+      "FIELD_MISMATCH",
+      "REQUEST_MISMATCH",
+      "SCHEMA_DRIFT",
+      "MISSING_ENDPOINT",
+      "DEAD_ENDPOINT",
+      "TYPE_CHEAT",
+      "SWALLOWED_ERROR",
+      "MISSING_ERROR_HANDLING",
+      "UNCHECKED_DB_ERROR",
+      "ENV_DRIFT",
+    ] as const;
+
+    for (const code of codes) {
+      const parsed = DiagnosticIssueSchema.parse({
+        id: `issue:${code.toLowerCase()}`,
+        wireId: "w1",
+        severity: "BROKEN",
+        code,
+        title: `Test ${code}`,
+        explanation: "explanation",
+        sourceFile: "src/file.ts",
+        sourceLine: 10,
+        sourceSnippet: "> 10 | const x = 1",
+        targetSnippet: "  15 | const y = 2",
+        repairPrompt: "repair",
+      });
+      expect(parsed.confidence).toBe("HIGH");
+      expect(parsed.sourceSnippet).toBe("> 10 | const x = 1");
+      expect(parsed.targetSnippet).toBe("  15 | const y = 2");
+    }
+
+    // Verify new NodeKind values and codeSnippet
+    const serverActionNode = AnchorNodeSchema.parse({
+      id: "action:user:create",
+      kind: "SERVER_ACTION",
+      label: "action createUser()",
+      filePath: "app/actions/user.ts",
+      line: 5,
+      codeSnippet: "> 5 | export async function createUser()",
+    });
+    expect(serverActionNode.kind).toBe("SERVER_ACTION");
+    expect(serverActionNode.codeSnippet).toBeDefined();
+
+    const extNode = AnchorNodeSchema.parse({
+      id: "ext:stripe",
+      kind: "EXTERNAL_SERVICE",
+      label: "Stripe API",
+      filePath: "app/api/checkout/route.ts",
+      line: 12,
+    });
+    expect(extNode.kind).toBe("EXTERNAL_SERVICE");
   });
 });
 

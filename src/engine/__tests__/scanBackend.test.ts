@@ -83,4 +83,73 @@ describe("scanBackendRoutes", () => {
     expect(postProjects?.swallowedErrors[0].status).toBe(200);
     expect(postProjects?.swallowedErrors[0].line).toBe(34);
   });
+
+  it("resolves variable returns, request body accesses, unchecked Supabase errors, and server actions", () => {
+    const project = new Project({
+      skipAddingFilesFromTsConfig: true,
+      compilerOptions: { allowJs: true, jsx: 2 },
+    });
+
+    // 1. API route with variable return, destructuring from body, and unchecked Supabase query
+    project.createSourceFile(
+      "src/app/api/advanced/route.ts",
+      `
+      import { NextResponse } from "next/server";
+
+      export async function POST(req: Request) {
+        const body = await req.json();
+        const { email, password } = body;
+
+        // Unchecked Supabase insert (only destructuring data, ignoring error)
+        const { data } = await supabase.from("accounts").insert({ email });
+
+        const payload = {
+          accountId: "acc_1",
+          status: "active",
+        };
+
+        return NextResponse.json(payload);
+      }
+      `
+    );
+
+    // 2. Server Action file
+    project.createSourceFile(
+      "src/app/actions/userActions.ts",
+      `
+      "use server";
+
+      export async function updateUserRole(userId: string, role: string) {
+        const { data, error } = await supabase.from("profiles").update({ role });
+        return { success: true };
+      }
+      `
+    );
+
+    const result = scanBackendRoutes(project, path.resolve("src"));
+
+    // Check POST /api/advanced
+    const advRoute = result.routes.find((r) => r.node.id === "api:POST:/api/advanced");
+    expect(advRoute).toBeDefined();
+    expect(advRoute?.node.expectsPayload).toEqual({
+      email: "string",
+      password: "string",
+    });
+    expect(advRoute?.node.returnsPayload).toEqual({
+      accountId: "string",
+      status: "string",
+    });
+    expect(advRoute?.uncheckedDbErrors).toHaveLength(1);
+    expect(advRoute?.uncheckedDbErrors[0].table).toBe("accounts");
+
+    // Check Server Action
+    const actionNode = result.nodes.find((n) => n.kind === "SERVER_ACTION");
+    expect(actionNode).toBeDefined();
+    expect(actionNode?.label).toBe("action updateUserRole()");
+
+    const actionRoute = result.routes.find((r) => r.node.id === actionNode?.id);
+    expect(actionRoute?.supabaseInteractions).toHaveLength(1);
+    // Error was destructured ({ data, error }), so uncheckedDbErrors is 0
+    expect(actionRoute?.uncheckedDbErrors).toHaveLength(0);
+  });
 });
