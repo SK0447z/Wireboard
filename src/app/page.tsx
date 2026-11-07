@@ -177,7 +177,10 @@ export default function WireboardPage() {
   }, [edges, filterMode]);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#09090b] text-zinc-100 overflow-hidden font-sans select-none">
+    <div
+      className="flex flex-col h-screen w-screen bg-[#09090b] text-zinc-100 overflow-hidden font-sans select-none"
+      style={{ height: "100vh", width: "100vw", display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: "#09090b" }}
+    >
       {/* Top Control Bar */}
       <header className="h-12 border-b border-white/10 px-4 flex items-center justify-between bg-[#09090b] z-30 shrink-0">
         {/* Left: Brand & Path Controls */}
@@ -278,7 +281,10 @@ export default function WireboardPage() {
       {/* Main Content: Canvas & Inspector */}
       <div className="flex flex-1 min-h-0 w-full relative overflow-hidden">
         {/* React Flow Canvas */}
-        <div className="flex-1 h-full min-h-0 relative" style={{ width: "100%", height: "100%" }}>
+        <div
+          className="flex-1 h-full min-h-0 relative"
+          style={{ flex: 1, height: "100%", width: "100%", position: "relative" }}
+        >
           {loading && (
             <div className="absolute inset-0 bg-[#09090b]/80 backdrop-blur-xs flex items-center justify-center z-20">
               <div className="flex items-center gap-2.5 font-mono text-xs text-zinc-300">
