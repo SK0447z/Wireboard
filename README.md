@@ -14,6 +14,8 @@ Then you open your browser, submit a form, and nothing works. Why? Because `fetc
 ### The Solution
 Wireboard parses your TypeScript AST deterministically using `ts-morph` in **<100ms with 0 LLM tokens (100% local and offline)**. It stitches your entire full-stack topology—**Frontend ➔ API Routes ➔ Database**—into a unified contract graph. Broken integration wires glow **Red**, suspicious type bypasses light up **Yellow**, verified contracts glow **Green**, and Wireboard automatically outputs 1-click surgical repair prompts to patch every mismatch.
 
+![Wireboard Visual Architecture Control Room](public/wireboard-control-room.jpg)
+
 ---
 
 ## Show, Don't Tell: What Wireboard Catches Instantly
