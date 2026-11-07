@@ -78,3 +78,4 @@ export function routesMatch(frontendUrl: string, backendRoute: string): boolean 
 
   return true;
 }
+
