@@ -172,3 +172,4 @@ After applying all edits, run \`npm test\` and execute Wireboard contract scan t
     atomicExecutionPrompt,
   };
 }
+

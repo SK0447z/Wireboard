@@ -32,3 +32,4 @@ export function parseEnvExample(projectRoot: string): ParsedEnv | null {
 
   return { keys, envPath: ".env.example" };
 }
+
