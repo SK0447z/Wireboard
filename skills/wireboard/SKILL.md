@@ -63,3 +63,4 @@ When Wireboard flags an issue:
 - **`SWALLOWED_ERROR`**: Ensure `catch` blocks in API routes return proper HTTP error status codes (`500`, `400`, etc.) rather than HTTP `200`.
 
 Verify again until `npm run check` exits with `0` and reports `Contract Integrity Score: 100%`.
+

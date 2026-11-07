@@ -107,3 +107,4 @@ Instruct your AI coding agent:
 ## License
 
 MIT
+

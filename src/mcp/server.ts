@@ -265,3 +265,4 @@ if (typeof require !== "undefined" && require.main === module) {
 } else if (process.argv[1] && process.argv[1].replace(/\\/g, "/").endsWith("src/mcp/server.ts")) {
   startMcpStdioServer();
 }
+
