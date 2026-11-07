@@ -1,5 +1,12 @@
 import path from "node:path";
-import { Project, SyntaxKind, Node } from "ts-morph";
+import {
+  Project,
+  SyntaxKind,
+  Node,
+  SourceFile,
+  Block,
+  VariableDeclaration,
+} from "ts-morph";
 import type { AnchorNode, HttpMethod } from "../types/graph";
 
 export interface FrontendFetchCall {
@@ -11,22 +18,278 @@ export interface FrontendFetchCall {
   typeCheatLine?: number;
   expectsResponseFields: string[];
   responseVarLine?: number;
+  sentBodyFields?: string[];
+}
+
+export interface SupabaseInteraction {
+  sourceNodeId: string;
+  sourceFile: string;
+  table: string;
+  operation: "select" | "insert" | "update" | "delete" | string;
+  columns: string[];
+  line: number;
 }
 
 export interface ScanFrontendResult {
   nodes: AnchorNode[];
   fetchCalls: FrontendFetchCall[];
+  supabaseInteractions: SupabaseInteraction[];
+}
+
+function extractUrlFromNode(argNode: Node, sf: SourceFile): string {
+  if (Node.isStringLiteral(argNode)) {
+    return argNode.getLiteralValue();
+  }
+  if (Node.isNoSubstitutionTemplateLiteral(argNode)) {
+    return argNode.getLiteralValue();
+  }
+  if (Node.isTemplateExpression(argNode)) {
+    let reconstructed = argNode.getHead().getLiteralText();
+    for (const span of argNode.getTemplateSpans()) {
+      const exprText = span.getExpression().getText();
+      const paramName =
+        exprText.split(".").pop()?.replace(/[^a-zA-Z0-9_]/g, "") || "id";
+      reconstructed += `[${paramName}]` + span.getLiteral().getLiteralText();
+    }
+    return reconstructed;
+  }
+  if (Node.isIdentifier(argNode)) {
+    const varName = argNode.getText();
+    let current: Node | undefined = argNode;
+    let decl: VariableDeclaration | undefined;
+
+    while (current && !decl) {
+      const block: Block | undefined = current.getFirstAncestorByKind(SyntaxKind.Block);
+      if (!block) break;
+      decl = block
+        .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+        .find((d) => d.getName() === varName);
+      current = block.getParent();
+    }
+
+    if (!decl) {
+      decl = sf.getVariableDeclaration(varName);
+    }
+
+    const init = decl?.getInitializer();
+    if (init) {
+      return extractUrlFromNode(init, sf);
+    }
+  }
+
+  return argNode.getText().replace(/['"`]/g, "");
+}
+
+function extractSentBodyKeys(callNode: Node, sf: SourceFile): string[] {
+  const args = Node.isCallExpression(callNode) ? callNode.getArguments() : [];
+  if (args.length < 2 || !Node.isObjectLiteralExpression(args[1])) {
+    return [];
+  }
+
+  const bodyProp = args[1].getProperty("body");
+  if (!bodyProp || !Node.isPropertyAssignment(bodyProp)) {
+    return [];
+  }
+
+  const init = bodyProp.getInitializer();
+  if (!init || !Node.isCallExpression(init)) {
+    return [];
+  }
+
+  const callExprText = init.getExpression().getText();
+  if (callExprText !== "JSON.stringify" && !callExprText.endsWith(".stringify")) {
+    return [];
+  }
+
+  const stringifyArgs = init.getArguments();
+  if (stringifyArgs.length === 0) {
+    return [];
+  }
+
+  const payloadArg = stringifyArgs[0];
+  const keys: string[] = [];
+
+  if (Node.isObjectLiteralExpression(payloadArg)) {
+    for (const prop of payloadArg.getProperties()) {
+      if (
+        Node.isPropertyAssignment(prop) ||
+        Node.isShorthandPropertyAssignment(prop)
+      ) {
+        keys.push(prop.getName());
+      }
+    }
+  } else if (Node.isIdentifier(payloadArg)) {
+    const varName = payloadArg.getText();
+    let current: Node | undefined = init;
+    let decl: VariableDeclaration | undefined;
+
+    while (current && !decl) {
+      const block: Block | undefined = current.getFirstAncestorByKind(SyntaxKind.Block);
+      if (!block) break;
+      decl = block
+        .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+        .find((d) => d.getName() === varName);
+      current = block.getParent();
+    }
+
+    if (!decl) {
+      decl = sf.getVariableDeclaration(varName);
+    }
+
+    const varInit = decl?.getInitializer();
+    if (varInit && Node.isObjectLiteralExpression(varInit)) {
+      for (const prop of varInit.getProperties()) {
+        if (
+          Node.isPropertyAssignment(prop) ||
+          Node.isShorthandPropertyAssignment(prop)
+        ) {
+          keys.push(prop.getName());
+        }
+      }
+    }
+  }
+
+  return keys;
+}
+
+function extractSupabaseInteractionsFromScope(
+  scope: Node,
+  sourceNodeId: string,
+  sourceFile: string
+): SupabaseInteraction[] {
+  const calls = scope.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const interactions: SupabaseInteraction[] = [];
+
+  for (const call of calls) {
+    const expr = call.getExpression();
+    if (!Node.isPropertyAccessExpression(expr)) continue;
+    if (expr.getName() !== "from") continue;
+
+    const baseText = expr.getExpression().getText();
+    if (baseText !== "supabase" && !baseText.endsWith(".supabase") && baseText !== "client") {
+      continue;
+    }
+
+    const args = call.getArguments();
+    if (args.length === 0) continue;
+
+    let tableName = "";
+    if (Node.isStringLiteral(args[0]) || Node.isNoSubstitutionTemplateLiteral(args[0])) {
+      tableName = args[0].getLiteralValue();
+    }
+    if (!tableName) continue;
+
+    let operation = "select";
+    const columns: string[] = [];
+    let interactionLine = call.getStartLineNumber();
+
+    // Trace up the call chain
+    let curr: Node = call;
+    while (curr.getParent() && Node.isPropertyAccessExpression(curr.getParent())) {
+      const propAccess = curr.getParent() as import("ts-morph").PropertyAccessExpression;
+      const methodName = propAccess.getName();
+      const methodCall = propAccess.getParent();
+
+      if (
+        methodCall &&
+        Node.isCallExpression(methodCall) &&
+        methodCall.getExpression() === propAccess
+      ) {
+        if (methodName === "select") {
+          if (operation !== "insert" && operation !== "update" && operation !== "delete") {
+            operation = "select";
+          }
+          const mArgs = methodCall.getArguments();
+          if (
+            mArgs.length > 0 &&
+            (Node.isStringLiteral(mArgs[0]) || Node.isNoSubstitutionTemplateLiteral(mArgs[0]))
+          ) {
+            const raw = mArgs[0].getLiteralValue();
+            const parts = raw.split(",").map((s) => s.trim()).filter((s) => s && s !== "*");
+            for (const p of parts) {
+              const colName = p.split(":")[0].trim();
+              if (colName && !columns.includes(colName)) {
+                columns.push(colName);
+              }
+            }
+          }
+        } else if (methodName === "insert" || methodName === "update") {
+          operation = methodName;
+          interactionLine = methodCall.getStartLineNumber();
+          const mArgs = methodCall.getArguments();
+          if (mArgs.length > 0) {
+            const arg = mArgs[0];
+            if (Node.isObjectLiteralExpression(arg)) {
+              for (const prop of arg.getProperties()) {
+                if (
+                  Node.isPropertyAssignment(prop) ||
+                  Node.isShorthandPropertyAssignment(prop)
+                ) {
+                  if (!columns.includes(prop.getName())) {
+                    columns.push(prop.getName());
+                  }
+                }
+              }
+            } else if (Node.isArrayLiteralExpression(arg)) {
+              for (const el of arg.getElements()) {
+                if (Node.isObjectLiteralExpression(el)) {
+                  for (const prop of el.getProperties()) {
+                    if (
+                      Node.isPropertyAssignment(prop) ||
+                      Node.isShorthandPropertyAssignment(prop)
+                    ) {
+                      if (!columns.includes(prop.getName())) {
+                        columns.push(prop.getName());
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } else if (methodName === "delete") {
+          operation = "delete";
+          interactionLine = methodCall.getStartLineNumber();
+        }
+        curr = methodCall;
+      } else {
+        break;
+      }
+    }
+
+    interactions.push({
+      sourceNodeId,
+      sourceFile,
+      table: tableName,
+      operation,
+      columns,
+      line: interactionLine,
+    });
+  }
+
+  return interactions;
 }
 
 export function scanFrontendComponents(
   project: Project,
   projectRoot: string
 ): ScanFrontendResult {
-  const normalizedRoot = projectRoot.replace(/\\/g, "/");
+  const normalizedRoot = path.resolve(projectRoot).replace(/\\/g, "/");
+  const isFixtureScan =
+    normalizedRoot.endsWith("test-fixtures/broken-app") ||
+    normalizedRoot.includes("/test-fixtures/");
+
   const globPatterns = [
-    path.join(projectRoot, "**/*.tsx").replace(/\\/g, "/"),
-    path.join(projectRoot, "**/*.jsx").replace(/\\/g, "/"),
+    path.join(normalizedRoot, "**/*.tsx").replace(/\\/g, "/"),
+    path.join(normalizedRoot, "**/*.jsx").replace(/\\/g, "/"),
+    "!**/node_modules/**",
+    "!**/.next/**",
+    "!**/.git/**",
   ];
+
+  if (!isFixtureScan) {
+    globPatterns.push("!**/test-fixtures/**");
+  }
 
   project.addSourceFilesAtPaths(globPatterns);
 
@@ -37,15 +300,18 @@ export function scanFrontendComponents(
       !p.includes("/api/") &&
       !p.includes("/node_modules/") &&
       !p.includes("/.next/") &&
+      !p.includes("/.git/") &&
+      (isFixtureScan || !p.includes("/test-fixtures/")) &&
       /\.[tj]sx$/.test(p)
     );
   });
 
   const nodes: AnchorNode[] = [];
   const fetchCalls: FrontendFetchCall[] = [];
+  const supabaseInteractions: SupabaseInteraction[] = [];
 
   for (const sf of frontendFiles) {
-    const relPath = path.relative(projectRoot, sf.getFilePath()).replace(/\\/g, "/");
+    const relPath = path.relative(normalizedRoot, sf.getFilePath()).replace(/\\/g, "/");
     const baseName = path.basename(sf.getFilePath());
 
     // Identify component
@@ -85,6 +351,10 @@ export function scanFrontendComponents(
     };
     nodes.push(compNode);
 
+    // Extract Supabase interactions from component file
+    const sfSupabase = extractSupabaseInteractionsFromScope(sf, componentNodeId, relPath);
+    supabaseInteractions.push(...sfSupabase);
+
     // Find fetch calls
     const calls = sf.getDescendantsOfKind(SyntaxKind.CallExpression);
     for (const call of calls) {
@@ -94,23 +364,19 @@ export function scanFrontendComponents(
       const args = call.getArguments();
       if (args.length === 0) continue;
 
-      // Extract URL
-      let url = "";
-      const arg0 = args[0];
-      if (Node.isStringLiteral(arg0)) {
-        url = arg0.getLiteralValue();
-      } else if (Node.isNoSubstitutionTemplateLiteral(arg0)) {
-        url = arg0.getLiteralValue();
-      } else {
-        url = arg0.getText().replace(/['"`]/g, "");
-      }
+      // Extract URL (handling StringLiteral, NoSubstitutionTemplateLiteral, TemplateExpression, Identifiers)
+      const url = extractUrlFromNode(args[0], sf);
 
       // Extract HTTP method
       let method: HttpMethod = "GET";
       if (args.length >= 2 && Node.isObjectLiteralExpression(args[1])) {
         const methodProp = args[1].getProperty("method");
         if (methodProp && Node.isPropertyAssignment(methodProp)) {
-          const methodVal = methodProp.getInitializer()?.getText().replace(/['"`]/g, "").toUpperCase();
+          const methodVal = methodProp
+            .getInitializer()
+            ?.getText()
+            .replace(/['"`]/g, "")
+            .toUpperCase();
           if (
             methodVal === "GET" ||
             methodVal === "POST" ||
@@ -122,6 +388,9 @@ export function scanFrontendComponents(
           }
         }
       }
+
+      // Extract sent request body keys
+      const sentBodyFields = extractSentBodyKeys(call, sf);
 
       const fetchLine = call.getStartLineNumber();
       let hasTypeCheat = false;
@@ -205,9 +474,10 @@ export function scanFrontendComponents(
         typeCheatLine,
         expectsResponseFields,
         responseVarLine,
+        sentBodyFields: sentBodyFields.length > 0 ? sentBodyFields : undefined,
       });
     }
   }
 
-  return { nodes, fetchCalls };
+  return { nodes, fetchCalls, supabaseInteractions };
 }

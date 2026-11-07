@@ -13,14 +13,15 @@ import { scanBackendRoutes } from "./scanBackend";
 import { scanFrontendComponents } from "./scanFrontend";
 
 export function scanRepository(projectRoot: string): ArchitectureGraph {
+  const resolvedRoot = path.resolve(projectRoot);
   const project = new Project({
     skipAddingFilesFromTsConfig: true,
     compilerOptions: { allowJs: true, jsx: 2 },
   });
 
-  const prismaResult = parsePrismaSchema(projectRoot);
-  const backendResult = scanBackendRoutes(project, projectRoot);
-  const frontendResult = scanFrontendComponents(project, projectRoot);
+  const prismaResult = parsePrismaSchema(resolvedRoot);
+  const backendResult = scanBackendRoutes(project, resolvedRoot);
+  const frontendResult = scanFrontendComponents(project, resolvedRoot);
 
   const nodesMap = new Map<string, AnchorNode>();
 
@@ -268,6 +269,101 @@ export function scanRepository(projectRoot: string): ArchitectureGraph {
         targetId: targetDbNode.id,
         status: wireStatus,
         label: `prisma.${interaction.model}.${interaction.operation}`,
+        issues: wireIssues,
+      });
+    }
+  }
+
+  // 3. Wire Type C: Supabase Interactions (Frontend Component or Backend Route -> DB Table)
+  const allSupabaseInteractions = [
+    ...frontendResult.supabaseInteractions,
+    ...backendResult.routes.flatMap((r) => r.supabaseInteractions),
+  ];
+
+  for (const interaction of allSupabaseInteractions) {
+    const sourceNode = nodesMap.get(interaction.sourceNodeId);
+    if (!sourceNode) continue;
+
+    const modelInfo = prismaResult.models[interaction.table.toLowerCase()];
+    let targetDbNode: AnchorNode;
+
+    if (modelInfo) {
+      const existingPrismaNode = nodesMap.get(modelInfo.nodeId);
+      if (existingPrismaNode) {
+        targetDbNode = existingPrismaNode;
+      } else {
+        const inferredId = `db:${interaction.table}`;
+        targetDbNode = nodesMap.get(inferredId) || {
+          id: inferredId,
+          kind: "DB_TABLE",
+          label: `${interaction.table} (Supabase)`,
+          filePath: "supabase",
+          line: 1,
+        };
+        nodesMap.set(inferredId, targetDbNode);
+      }
+    } else {
+      const inferredId = `db:${interaction.table}`;
+      targetDbNode = nodesMap.get(inferredId) || {
+        id: inferredId,
+        kind: "DB_TABLE",
+        label: `${interaction.table} (Supabase)`,
+        filePath: "supabase",
+        line: 1,
+      };
+      nodesMap.set(inferredId, targetDbNode);
+    }
+
+    const wireId = `wire:${sourceNode.id}->${targetDbNode.id}`;
+    const wireIssues: DiagnosticIssue[] = [];
+
+    // Check for schema drift if model columns are available
+    if (modelInfo && interaction.columns.length > 0) {
+      for (const col of interaction.columns) {
+        if (!(col in modelInfo.columns)) {
+          const cleanKey = col.replace(/_/g, "").toLowerCase();
+          const matchedCol = Object.keys(modelInfo.columns).find(
+            (c) => c.replace(/_/g, "").toLowerCase() === cleanKey
+          );
+
+          const issue: DiagnosticIssue = {
+            id: `issue:schema-drift-${sourceNode.id}-${targetDbNode.id}-${col}`,
+            wireId,
+            severity: "BROKEN",
+            code: "SCHEMA_DRIFT",
+            title: `Column mismatch: ${col} vs ${matchedCol || "unknown"}`,
+            explanation: `${sourceNode.label} writes \`${col}\`, but model \`${modelInfo.modelName}\` defines \`${matchedCol || "unknown"}\`.`,
+            sourceFile: interaction.sourceFile,
+            sourceLine: interaction.line,
+            targetFile: modelInfo.filePath,
+            targetLine: modelInfo.line,
+            expectedShape: matchedCol ? { [matchedCol]: "string" } : undefined,
+            actualShape: { [col]: "string" },
+            repairPrompt: `In ${interaction.sourceFile} (line ${interaction.line}), update \`${col}\` to \`${matchedCol || col}\` to match ${modelInfo.filePath} (line ${modelInfo.line}).`,
+          };
+          wireIssues.push(issue);
+        }
+      }
+    }
+
+    let wireStatus: "VERIFIED" | "SUSPICIOUS" | "BROKEN" = "VERIFIED";
+    if (wireIssues.some((i) => i.severity === "BROKEN")) {
+      wireStatus = "BROKEN";
+    }
+
+    // Deduplicate or append wire
+    const existingWireIndex = wires.findIndex((w) => w.id === wireId);
+    if (existingWireIndex >= 0) {
+      const existingWire = wires[existingWireIndex];
+      existingWire.issues.push(...wireIssues);
+      if (wireStatus === "BROKEN") existingWire.status = "BROKEN";
+    } else {
+      wires.push({
+        id: wireId,
+        sourceId: sourceNode.id,
+        targetId: targetDbNode.id,
+        status: wireStatus,
+        label: `supabase.${interaction.table}.${interaction.operation}`,
         issues: wireIssues,
       });
     }

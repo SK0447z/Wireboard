@@ -95,6 +95,12 @@ export default function WireboardPage() {
     }
   };
 
+  const handlePresetClick = (presetPath: string) => {
+    setPathInput(presetPath);
+    setRepoPath(presetPath);
+    runScan(presetPath);
+  };
+
   // Node Click
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
@@ -199,18 +205,53 @@ export default function WireboardPage() {
                 type="text"
                 value={pathInput}
                 onChange={(e) => setPathInput(e.target.value)}
-                placeholder="Repository path..."
-                className="w-56 bg-transparent text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
+                placeholder="Local path or https://github.com/owner/repo..."
+                className="w-72 bg-transparent text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="h-7 px-2.5 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-xs font-mono text-zinc-200 border border-zinc-700 transition-colors"
+              className="h-7 px-2.5 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-xs font-mono text-zinc-200 border border-zinc-700 transition-colors flex items-center gap-1.5"
             >
-              Scan
+              {loading ? (
+                <>
+                  <RotateCw className="w-3 h-3 animate-spin stroke-[1.5] text-zinc-400" />
+                  <span>Scanning AST...</span>
+                </>
+              ) : (
+                <span>Scan</span>
+              )}
             </button>
           </form>
+
+          {/* Preset Pills */}
+          <div className="flex items-center gap-1.5 pl-1 border-l border-zinc-800">
+            <button
+              type="button"
+              onClick={() => handlePresetClick("test-fixtures/broken-app")}
+              disabled={loading}
+              className={`h-7 px-2 rounded text-xs font-mono transition-colors border ${
+                repoPath === "test-fixtures/broken-app"
+                  ? "bg-zinc-800 text-zinc-100 border-zinc-700 font-medium"
+                  : "bg-[#111115] text-zinc-400 border-zinc-800/80 hover:text-zinc-200 hover:border-zinc-700"
+              }`}
+            >
+              Fixture: broken-app
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePresetClick(".")}
+              disabled={loading}
+              className={`h-7 px-2 rounded text-xs font-mono transition-colors border ${
+                repoPath === "."
+                  ? "bg-zinc-800 text-zinc-100 border-zinc-700 font-medium"
+                  : "bg-[#111115] text-zinc-400 border-zinc-800/80 hover:text-zinc-200 hover:border-zinc-700"
+              }`}
+            >
+              Self-Scan: Wireboard
+            </button>
+          </div>
 
           <button
             onClick={() => runScan(repoPath)}
@@ -295,11 +336,20 @@ export default function WireboardPage() {
           )}
 
           {error && (
-            <div className="absolute top-4 left-4 z-20 max-w-md p-3 rounded bg-rose-950/80 border border-rose-800/80 text-rose-200 text-xs font-mono">
-              <div className="font-bold flex items-center gap-1.5 mb-1">
-                <AlertCircle className="w-4 h-4" /> Scan Error
+            <div className="absolute top-4 left-4 z-20 max-w-md p-3 rounded bg-[#181113]/95 border border-rose-800/60 text-rose-200 text-xs font-mono shadow-xl backdrop-blur-xs">
+              <div className="font-bold flex items-center justify-between gap-2 mb-1.5 text-rose-300">
+                <div className="flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-400 stroke-[1.75]" />
+                  <span>Scan Error</span>
+                </div>
+                <button
+                  onClick={() => setError(null)}
+                  className="text-zinc-500 hover:text-zinc-300 text-[10px] uppercase font-mono px-1 rounded hover:bg-zinc-800/50 transition-colors"
+                >
+                  Dismiss
+                </button>
               </div>
-              <div>{error}</div>
+              <div className="text-zinc-300 leading-relaxed break-words">{error}</div>
             </div>
           )}
 

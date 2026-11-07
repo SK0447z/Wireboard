@@ -63,4 +63,60 @@ describe("scanFrontendComponents", () => {
     expect(deleteCall?.hasTypeCheat).toBe(false);
     expect(deleteCall?.expectsResponseFields).toEqual([]);
   });
+
+  it("extracts template literal URLs, sent request body fields, and Supabase interactions", () => {
+    const project = new Project({
+      skipAddingFilesFromTsConfig: true,
+      compilerOptions: { allowJs: true, jsx: 2 },
+    });
+
+    project.createSourceFile(
+      "src/components/DynamicTestComponent.tsx",
+      `
+      import React from "react";
+      export function DynamicTestComponent() {
+        const url = "/api/items";
+        async function run(id: string) {
+          // Template expression
+          await fetch(\`/api/projects/\${id}\`);
+          // Variable URL + POST body
+          await fetch(url, {
+            method: "POST",
+            body: JSON.stringify({ repoPath: "foo", count: 42 }),
+          });
+          // Supabase select & insert
+          await supabase.from("teams").select("id, name, created_at");
+          await supabase.from("members").insert({ team_id: "t1", role: "admin" });
+        }
+        return <div>Test</div>;
+      }
+      `
+    );
+
+    const result = scanFrontendComponents(project, path.resolve("src"));
+
+    const compNode = result.nodes.find((n) => n.id === "fe:DynamicTestComponent.tsx");
+    expect(compNode).toBeDefined();
+
+    // 1. Template literal normalized to [id]
+    const templateCall = result.fetchCalls.find((c) => c.url === "/api/projects/[id]");
+    expect(templateCall).toBeDefined();
+
+    // 2. Variable URL resolved to /api/items + sent body fields extracted
+    const postCall = result.fetchCalls.find((c) => c.url === "/api/items");
+    expect(postCall).toBeDefined();
+    expect(postCall?.method).toBe("POST");
+    expect(postCall?.sentBodyFields).toEqual(["repoPath", "count"]);
+
+    // 3. Supabase interactions extracted
+    const teamsSupabase = result.supabaseInteractions.find((s) => s.table === "teams");
+    expect(teamsSupabase).toBeDefined();
+    expect(teamsSupabase?.operation).toBe("select");
+    expect(teamsSupabase?.columns).toEqual(["id", "name", "created_at"]);
+
+    const membersSupabase = result.supabaseInteractions.find((s) => s.table === "members");
+    expect(membersSupabase).toBeDefined();
+    expect(membersSupabase?.operation).toBe("insert");
+    expect(membersSupabase?.columns).toEqual(["team_id", "role"]);
+  });
 });
