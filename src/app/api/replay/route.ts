@@ -70,13 +70,16 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const durationMs = Math.round(performance.now() - startTime);
-    return NextResponse.json({
-      status: 502,
-      statusText: "Connection Error",
-      durationMs,
-      error: err instanceof Error ? err.message : String(err),
-      data: null,
-    });
+    return NextResponse.json(
+      {
+        status: 502,
+        statusText: "Connection Error",
+        durationMs,
+        error: err instanceof Error ? err.message : String(err),
+        data: null,
+      },
+      { status: 502 }
+    );
   }
 }
 

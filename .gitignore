@@ -41,3 +41,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# internal agent harness
+.agents/
+.antigravity/
+.antigravityrules
+AGENTS.md
+WIREBOARD_CONTEXT.md

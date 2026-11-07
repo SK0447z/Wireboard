@@ -14,7 +14,7 @@ Then you open your browser, submit a form, and nothing works. Why? Because `fetc
 ### The Solution
 Wireboard parses your TypeScript AST deterministically using `ts-morph` in **<100ms with 0 LLM tokens (100% local and offline)**. It stitches your entire full-stack topology—**Frontend ➔ API Routes ➔ Database**—into a unified contract graph. Broken integration wires glow **Red**, suspicious type bypasses light up **Yellow**, verified contracts glow **Green**, and Wireboard automatically outputs 1-click surgical repair prompts to patch every mismatch.
 
-![Wireboard Visual Architecture Control Room](public/wireboard-control-room.jpg)
+![Wireboard Visual Architecture Control Room](public/wireboard-control-room.svg)
 
 ---
 
@@ -128,9 +128,9 @@ Found 3 contract issue(s):
 
 ---
 
-## The 5 Boundary Failures Wireboard Detects
+## The 6 Boundary Failures Wireboard Detects
 
-Wireboard acts as a strict compile-time firewall against the five most common AI-generated integration bugs:
+Wireboard acts as a strict compile-time firewall against the six most common AI-generated integration bugs:
 
 1. 🔴 **`FIELD_MISMATCH`**  
    Frontend reads properties on a response payload that the backend handler never returns (e.g. `userId` vs `user_id`, or missing nested properties).
@@ -142,6 +142,20 @@ Wireboard acts as a strict compile-time firewall against the five most common AI
    AI models silence compiler checks at network boundaries using `as any`, `as unknown`, or unvalidated assertions instead of typing the contract.
 5. 🟡 **`SWALLOWED_ERROR`**  
    Backend route handlers catch exceptions in `try / catch` blocks and return HTTP `200 OK` with an error message, masking server crashes from client error boundaries.
+6. 🟡 **`ENV_DRIFT`**  
+   Route handlers or components read `process.env.*` variables that are missing from `.env.example` templates (e.g. undeclared `JWT_SIGNING_KEY`), risking runtime crashes in staging and production.
+
+### 💥 Blast Radius Simulator
+Simulate breaking changes *before* committing code or executing schema migrations:
+- **Downstream Dependency Mapping:** Click any database schema or API endpoint to calculate the exact blast radius of affected files, routes, and UI components.
+- **Direct vs Transitive Risk:** Visually identifies direct callers and cascading downstream consumers with high/medium/low severity scores.
+- **Safe Refactoring Guardrails:** Prevents AI agents from renaming database columns or payload fields without updating all dependent callers.
+
+### ⚡ Live Wire Replay
+Bridge static analysis and live runtime verification:
+- **Instant HTTP Probing:** Execute live API requests directly from the Control Room canvas or Diagnostics drawer without leaving the visual debugger.
+- **Latency & Status Benchmarks:** Measure millisecond response durations and view HTTP status codes inline.
+- **Runtime Payload Diffs:** Compare live server responses against static AST expectations to expose active serialization bugs or unexpected null fields.
 
 ---
 
@@ -194,6 +208,7 @@ Connect Wireboard to Cursor, Claude Code, Windsurf, Antigravity, or any Model Co
 #### Exposed MCP Tools:
 - **`wireboard_scan`**: Scans the AST and returns the Contract Integrity Score, total nodes, summary counts, and broken/suspicious wire lists.
 - **`wireboard_get_fixes`**: Returns the exact `DiagnosticIssue[]` list containing ready-to-execute `repairPrompt` instructions for every contract bug.
+- **`wireboard_blast_radius`**: Simulates the downstream impact of changing or breaking any node in the full-stack architecture graph.
 
 ---
 

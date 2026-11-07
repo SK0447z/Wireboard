@@ -56,7 +56,7 @@ describe("API: /api/replay", () => {
     });
 
     const res = await POST(req);
-    expect(res.status).toBe(200); // Route handler returns JSON response with status 502
+    expect(res.status).toBe(502); // Route handler returns JSON response with HTTP status 502
     const json = await res.json();
     expect(json.status).toBe(502);
     expect(json.statusText).toBe("Connection Error");

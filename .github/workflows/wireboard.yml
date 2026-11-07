@@ -1,0 +1,34 @@
+name: Wireboard PR Contract Gatekeeper
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  contract-gatekeeper:
+    name: Contract Verification & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Test Suite (Vitest AST & Blast Radius)
+        run: npm test
+
+      - name: Wireboard Contract Integrity Self-Scan
+        run: npm run check
+
+      - name: Production Build
+        run: npm run build

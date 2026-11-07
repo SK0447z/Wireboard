@@ -1,143 +1,245 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" style="background:#09090b;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="1200" height="680" style="background:#09090b;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;">
   <defs>
     <!-- Background Grid Pattern -->
-    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
-      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#18181b" stroke-width="1" />
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#141417" stroke-width="1" />
     </pattern>
     <filter id="glow-rose" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#ef4444" flood-opacity="0.3"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#ef4444" flood-opacity="0.45"/>
     </filter>
     <filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#f59e0b" flood-opacity="0.3"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#f59e0b" flood-opacity="0.45"/>
     </filter>
     <filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#10b981" flood-opacity="0.3"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#10b981" flood-opacity="0.45"/>
     </filter>
   </defs>
 
-  <!-- Background -->
-  <rect width="1200" height="675" fill="#09090b" />
-  <rect width="1200" height="675" fill="url(#grid)" />
+  <!-- Background Canvas -->
+  <rect width="1200" height="680" fill="#09090b" />
+  <rect width="1200" height="680" fill="url(#grid)" />
 
-  <!-- Top Navigation Bar -->
-  <rect width="1200" height="48" fill="#0d0d10" stroke="#27272a" stroke-width="1" />
-  <circle cx="28" cy="24" r="6" fill="#10b981" />
-  <text x="44" y="28" fill="#f4f4f5" font-size="13" font-weight="700" letter-spacing="1">WIREBOARD</text>
-  <rect x="150" y="12" width="260" height="24" rx="4" fill="#18181b" stroke="#27272a" stroke-width="1" />
-  <text x="162" y="28" fill="#a1a1aa" font-size="11">test-fixtures/broken-app</text>
-  <rect x="420" y="12" width="60" height="24" rx="4" fill="#27272a" />
-  <text x="436" y="28" fill="#f4f4f5" font-size="11">Scan</text>
+  <!-- Top Navigation & Telemetry Bar -->
+  <rect width="1200" height="46" fill="#0d0d11" stroke="#27272a" stroke-width="1" />
+  <circle cx="24" cy="23" r="5" fill="#10b981" filter="url(#glow-emerald)" />
+  <text x="38" y="27" fill="#f4f4f5" font-size="12" font-weight="700" letter-spacing="1.5">WIREBOARD</text>
+  <rect x="140" y="10" width="18" height="26" fill="none" />
+  <rect x="145" y="11" width="220" height="24" rx="4" fill="#18181b" stroke="#27272a" stroke-width="1" />
+  <text x="157" y="27" fill="#a1a1aa" font-size="10">test-fixtures/broken-app</text>
+  <rect x="372" y="11" width="52" height="24" rx="4" fill="#27272a" />
+  <text x="385" y="27" fill="#f4f4f5" font-size="10" font-weight="600">Scan</text>
 
-  <!-- Score & Telemetry in Top Bar -->
-  <text x="750" y="28" fill="#a1a1aa" font-size="11">Integrity Score:</text>
-  <text x="845" y="28" fill="#ef4444" font-size="12" font-weight="700">25% (CRITICAL)</text>
-  <text x="960" y="28" fill="#ef4444" font-size="11">3 BROKEN</text>
-  <text x="1035" y="28" fill="#f59e0b" font-size="11">2 SUSPICIOUS</text>
-  <text x="1125" y="28" fill="#10b981" font-size="11">1 VERIFIED</text>
+  <!-- Score & Telemetry Badges -->
+  <text x="460" y="27" fill="#71717a" font-size="10">INTEGRITY SCORE:</text>
+  <rect x="560" y="11" width="105" height="24" rx="4" fill="#2a1215" stroke="#ef4444" stroke-width="1" />
+  <text x="568" y="27" fill="#ef4444" font-size="10" font-weight="700">25% CRITICAL</text>
+  
+  <rect x="674" y="11" width="76" height="24" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1" />
+  <text x="682" y="27" fill="#ef4444" font-size="10" font-weight="600">3 BROKEN</text>
 
-  <!-- Column Headers -->
-  <text x="80" y="85" fill="#71717a" font-size="11" font-weight="600" letter-spacing="1">FRONTEND COMPONENTS</text>
-  <text x="450" y="85" fill="#71717a" font-size="11" font-weight="600" letter-spacing="1">BACKEND API ROUTES</text>
-  <text x="820" y="85" fill="#71717a" font-size="11" font-weight="600" letter-spacing="1">DATABASE SCHEMAS</text>
+  <rect x="758" y="11" width="96" height="24" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1" />
+  <text x="766" y="27" fill="#f59e0b" font-size="10" font-weight="600">2 SUSPICIOUS</text>
 
-  <!-- WIRES (Edges) -->
-  <!-- Broken Wire 1: RegisterForm -> POST /api/register (Red) -->
-  <path d="M 330 160 C 390 160, 390 160, 450 160" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="6,4" filter="url(#glow-rose)" />
-  <!-- Broken Wire 2: POST /api/register -> db:User (Red) -->
-  <path d="M 700 160 C 760 160, 760 160, 820 160" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="6,4" filter="url(#glow-rose)" />
-  <!-- Verified Wire: ProjectList -> GET /api/projects (Green) -->
-  <path d="M 330 360 C 390 360, 390 330, 450 330" fill="none" stroke="#10b981" stroke-width="2" filter="url(#glow-emerald)" />
-  <!-- Suspicious Wire: POST /api/projects -> db:Project (Yellow) -->
-  <path d="M 700 480 C 760 480, 760 360, 820 360" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5,5" filter="url(#glow-amber)" />
-  <!-- Broken Wire 3: ProjectList -> DELETE /api/v1/projects/delete (Red) -->
-  <path d="M 330 400 C 390 400, 390 560, 450 560" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="6,4" filter="url(#glow-rose)" />
+  <rect x="862" y="11" width="84" height="24" rx="4" fill="#18181b" stroke="#3f3f46" stroke-width="1" />
+  <text x="870" y="27" fill="#10b981" font-size="10" font-weight="600">1 VERIFIED</text>
 
-  <!-- NODES -->
-  <!-- Node 1: fe:RegisterForm.tsx -->
-  <g transform="translate(80, 110)">
-    <rect width="250" height="100" rx="6" fill="#111114" stroke="#27272a" stroke-width="1" />
-    <rect x="0" y="0" width="250" height="28" rx="6" fill="#18181b" />
-    <text x="12" y="18" fill="#a1a1aa" font-size="9" font-weight="700">FRONTEND</text>
-    <circle cx="236" cy="14" r="3.5" fill="#ef4444" />
-    <text x="12" y="50" fill="#f4f4f5" font-size="12" font-weight="600">RegisterForm.tsx</text>
-    <text x="12" y="70" fill="#71717a" font-size="10">app/register/RegisterForm.tsx:5</text>
-    <text x="12" y="88" fill="#ef4444" font-size="9">expects: userId, sessionToken</text>
+  <!-- Swimlane Column Labels -->
+  <text x="36" y="74" fill="#71717a" font-size="10" font-weight="700" letter-spacing="1">1. FRONTEND COMPONENTS</text>
+  <text x="316" y="74" fill="#71717a" font-size="10" font-weight="700" letter-spacing="1">2. BACKEND API ROUTES</text>
+  <text x="596" y="74" fill="#71717a" font-size="10" font-weight="700" letter-spacing="1">3. DATABASE SCHEMAS</text>
+
+  <!-- WIRES (Edges with Glowing SVG Paths) -->
+  <!-- Broken Wire 1: RegisterForm.tsx -> POST /api/register (Red Glowing Dashed) -->
+  <path d="M 276 145 C 300 145, 300 145, 316 145" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="6,4" filter="url(#glow-rose)" />
+  <!-- Broken Wire 2: POST /api/register -> User Model (Red Glowing Dashed) -->
+  <path d="M 556 145 C 576 145, 576 145, 596 145" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="6,4" filter="url(#glow-rose)" />
+
+  <!-- Verified Wire: ProjectList.tsx -> GET /api/projects (Emerald Glowing Solid) -->
+  <path d="M 276 345 C 296 345, 296 315, 316 315" fill="none" stroke="#10b981" stroke-width="2.5" filter="url(#glow-emerald)" />
+
+  <!-- Suspicious Wire: POST /api/projects -> Project Model (Amber Glowing Dashed) -->
+  <path d="M 556 445 C 576 445, 576 345, 596 345" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5,4" filter="url(#glow-amber)" />
+
+  <!-- Broken Wire 3: ProjectList.tsx -> Missing Route DELETE /api/v1/projects/delete (Red Glowing Dashed) -->
+  <path d="M 276 385 C 296 385, 296 550, 316 550" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="6,4" filter="url(#glow-rose)" />
+
+  <!-- NODES: COLUMN 1 - FRONTEND -->
+  <!-- Node: RegisterForm.tsx -->
+  <g transform="translate(36, 95)">
+    <rect width="240" height="98" rx="5" fill="#101014" stroke="#ef4444" stroke-width="1.2" />
+    <rect x="0" y="0" width="240" height="24" rx="5" fill="#18181b" />
+    <text x="10" y="16" fill="#a1a1aa" font-size="9" font-weight="700">FRONTEND</text>
+    <circle cx="226" cy="12" r="3.5" fill="#ef4444" filter="url(#glow-rose)" />
+    <text x="10" y="44" fill="#f4f4f5" font-size="11" font-weight="600">RegisterForm.tsx</text>
+    <text x="10" y="62" fill="#71717a" font-size="9">app/register/RegisterForm.tsx:5</text>
+    <text x="10" y="82" fill="#ef4444" font-size="9">expects: userId, sessionToken</text>
   </g>
 
-  <!-- Node 2: api:POST:/api/register -->
-  <g transform="translate(450, 110)">
-    <rect width="250" height="100" rx="6" fill="#111114" stroke="#ef4444" stroke-width="1.5" />
-    <rect x="0" y="0" width="250" height="28" rx="6" fill="#18181b" />
-    <text x="12" y="18" fill="#f4f4f5" font-size="9" font-weight="700">POST</text>
-    <text x="45" y="18" fill="#a1a1aa" font-size="9">/api/register</text>
-    <circle cx="236" cy="14" r="3.5" fill="#ef4444" />
-    <text x="12" y="50" fill="#f4f4f5" font-size="12" font-weight="600">POST /api/register</text>
-    <text x="12" y="70" fill="#71717a" font-size="10">app/api/register/route.ts:15</text>
-    <text x="12" y="88" fill="#f59e0b" font-size="9">ENV_DRIFT: JWT_SIGNING_KEY</text>
+  <!-- Node: ProjectList.tsx -->
+  <g transform="translate(36, 295)">
+    <rect width="240" height="110" rx="5" fill="#101014" stroke="#27272a" stroke-width="1" />
+    <rect x="0" y="0" width="240" height="24" rx="5" fill="#18181b" />
+    <text x="10" y="16" fill="#a1a1aa" font-size="9" font-weight="700">FRONTEND</text>
+    <circle cx="226" cy="12" r="3.5" fill="#ef4444" />
+    <text x="10" y="44" fill="#f4f4f5" font-size="11" font-weight="600">ProjectList.tsx</text>
+    <text x="10" y="62" fill="#71717a" font-size="9">app/dashboard/ProjectList.tsx:11</text>
+    <text x="10" y="80" fill="#10b981" font-size="9">calls: GET /api/projects</text>
+    <text x="10" y="96" fill="#ef4444" font-size="9">calls: DELETE /api/v1/projects</text>
   </g>
 
-  <!-- Node 3: db:User -->
-  <g transform="translate(820, 110)">
-    <rect width="250" height="100" rx="6" fill="#111114" stroke="#ef4444" stroke-width="1.5" />
-    <rect x="0" y="0" width="250" height="28" rx="6" fill="#18181b" />
-    <text x="12" y="18" fill="#a1a1aa" font-size="9" font-weight="700">PRISMA MODEL</text>
-    <circle cx="236" cy="14" r="3.5" fill="#ef4444" />
-    <text x="12" y="50" fill="#f4f4f5" font-size="12" font-weight="600">User</text>
-    <text x="12" y="70" fill="#71717a" font-size="10">prisma/schema.prisma:10</text>
-    <text x="12" y="88" fill="#71717a" font-size="9">cols: id, email, subscription_tier</text>
+  <!-- NODES: COLUMN 2 - BACKEND API ROUTES -->
+  <!-- Node: POST /api/register -->
+  <g transform="translate(316, 95)">
+    <rect width="240" height="98" rx="5" fill="#101014" stroke="#ef4444" stroke-width="1.2" />
+    <rect x="0" y="0" width="240" height="24" rx="5" fill="#18181b" />
+    <text x="10" y="16" fill="#f4f4f5" font-size="9" font-weight="700">POST</text>
+    <text x="42" y="16" fill="#a1a1aa" font-size="9">/api/register</text>
+    <circle cx="226" cy="12" r="3.5" fill="#ef4444" filter="url(#glow-rose)" />
+    <text x="10" y="44" fill="#f4f4f5" font-size="11" font-weight="600">POST /api/register</text>
+    <text x="10" y="62" fill="#71717a" font-size="9">app/api/register/route.ts:15</text>
+    <text x="10" y="82" fill="#ef4444" font-size="9">returns: user_id, token</text>
   </g>
 
-  <!-- Node 4: fe:ProjectList.tsx -->
-  <g transform="translate(80, 320)">
-    <rect width="250" height="110" rx="6" fill="#111114" stroke="#27272a" stroke-width="1" />
-    <rect x="0" y="0" width="250" height="28" rx="6" fill="#18181b" />
-    <text x="12" y="18" fill="#a1a1aa" font-size="9" font-weight="700">FRONTEND</text>
-    <circle cx="236" cy="14" r="3.5" fill="#ef4444" />
-    <text x="12" y="50" fill="#f4f4f5" font-size="12" font-weight="600">ProjectList.tsx</text>
-    <text x="12" y="70" fill="#71717a" font-size="10">app/dashboard/ProjectList.tsx:11</text>
-    <text x="12" y="90" fill="#10b981" font-size="9">calls: GET /api/projects</text>
-    <text x="12" y="102" fill="#ef4444" font-size="9">calls: DELETE /api/v1/projects/delete</text>
+  <!-- Node: GET /api/projects -->
+  <g transform="translate(316, 270)">
+    <rect width="240" height="85" rx="5" fill="#101014" stroke="#10b981" stroke-width="1.2" />
+    <rect x="0" y="0" width="240" height="24" rx="5" fill="#18181b" />
+    <text x="10" y="16" fill="#10b981" font-size="9" font-weight="700">GET</text>
+    <text x="36" y="16" fill="#a1a1aa" font-size="9">/api/projects</text>
+    <circle cx="226" cy="12" r="3.5" fill="#10b981" filter="url(#glow-emerald)" />
+    <text x="10" y="44" fill="#f4f4f5" font-size="11" font-weight="600">GET /api/projects</text>
+    <text x="10" y="62" fill="#71717a" font-size="9">app/api/projects/route.ts:17</text>
+    <text x="10" y="76" fill="#10b981" font-size="9">VERIFIED CONTRACT</text>
   </g>
 
-  <!-- Node 5: api:GET:/api/projects -->
-  <g transform="translate(450, 280)">
-    <rect width="250" height="90" rx="6" fill="#111114" stroke="#10b981" stroke-width="1.5" />
-    <rect x="0" y="0" width="250" height="28" rx="6" fill="#18181b" />
-    <text x="12" y="18" fill="#10b981" font-size="9" font-weight="700">GET</text>
-    <text x="40" y="18" fill="#a1a1aa" font-size="9">/api/projects</text>
-    <circle cx="236" cy="14" r="3.5" fill="#10b981" />
-    <text x="12" y="50" fill="#f4f4f5" font-size="12" font-weight="600">GET /api/projects</text>
-    <text x="12" y="70" fill="#71717a" font-size="10">app/api/projects/route.ts:17</text>
+  <!-- Node: POST /api/projects -->
+  <g transform="translate(316, 395)">
+    <rect width="240" height="90" rx="5" fill="#101014" stroke="#f59e0b" stroke-width="1.2" />
+    <rect x="0" y="0" width="240" height="24" rx="5" fill="#18181b" />
+    <text x="10" y="16" fill="#f59e0b" font-size="9" font-weight="700">POST</text>
+    <text x="42" y="16" fill="#a1a1aa" font-size="9">/api/projects</text>
+    <circle cx="226" cy="12" r="3.5" fill="#f59e0b" filter="url(#glow-amber)" />
+    <text x="10" y="44" fill="#f4f4f5" font-size="11" font-weight="600">POST /api/projects</text>
+    <text x="10" y="62" fill="#71717a" font-size="9">app/api/projects/route.ts:25</text>
+    <text x="10" y="80" fill="#f59e0b" font-size="9">SWALLOWED_ERROR (status 200)</text>
   </g>
 
-  <!-- Node 6: api:POST:/api/projects -->
-  <g transform="translate(450, 420)">
-    <rect width="250" height="90" rx="6" fill="#111114" stroke="#f59e0b" stroke-width="1.5" />
-    <rect x="0" y="0" width="250" height="28" rx="6" fill="#18181b" />
-    <text x="12" y="18" fill="#f59e0b" font-size="9" font-weight="700">POST</text>
-    <text x="45" y="18" fill="#a1a1aa" font-size="9">/api/projects</text>
-    <circle cx="236" cy="14" r="3.5" fill="#f59e0b" />
-    <text x="12" y="50" fill="#f4f4f5" font-size="12" font-weight="600">POST /api/projects</text>
-    <text x="12" y="70" fill="#71717a" font-size="10">app/api/projects/route.ts:25</text>
+  <!-- Node: Missing Route -->
+  <g transform="translate(316, 520)">
+    <rect width="240" height="75" rx="5" fill="#141012" stroke="#ef4444" stroke-width="1.2" stroke-dasharray="4,4" />
+    <rect x="0" y="0" width="240" height="24" rx="5" fill="#1f1416" />
+    <text x="10" y="16" fill="#ef4444" font-size="9" font-weight="700">MISSING ENDPOINT</text>
+    <circle cx="226" cy="12" r="3.5" fill="#ef4444" />
+    <text x="10" y="44" fill="#f4f4f5" font-size="10" font-weight="600">DELETE /api/v1/projects/delete</text>
+    <text x="10" y="62" fill="#ef4444" font-size="9">404 at runtime (Unrouted)</text>
   </g>
 
-  <!-- Node 7: db:Project -->
-  <g transform="translate(820, 310)">
-    <rect width="250" height="100" rx="6" fill="#111114" stroke="#f59e0b" stroke-width="1.5" />
-    <rect x="0" y="0" width="250" height="28" rx="6" fill="#18181b" />
-    <text x="12" y="18" fill="#a1a1aa" font-size="9" font-weight="700">PRISMA MODEL</text>
-    <circle cx="236" cy="14" r="3.5" fill="#f59e0b" />
-    <text x="12" y="50" fill="#f4f4f5" font-size="12" font-weight="600">Project</text>
-    <text x="12" y="70" fill="#71717a" font-size="10">prisma/schema.prisma:22</text>
-    <text x="12" y="88" fill="#71717a" font-size="9">cols: id, title, user_id</text>
+  <!-- NODES: COLUMN 3 - DATABASE MODELS -->
+  <!-- Node: User Model -->
+  <g transform="translate(596, 95)">
+    <rect width="240" height="98" rx="5" fill="#101014" stroke="#ef4444" stroke-width="1.2" />
+    <rect x="0" y="0" width="240" height="24" rx="5" fill="#18181b" />
+    <text x="10" y="16" fill="#a1a1aa" font-size="9" font-weight="700">PRISMA MODEL</text>
+    <circle cx="226" cy="12" r="3.5" fill="#ef4444" filter="url(#glow-rose)" />
+    <text x="10" y="44" fill="#f4f4f5" font-size="11" font-weight="600">User</text>
+    <text x="10" y="62" fill="#71717a" font-size="9">prisma/schema.prisma:10</text>
+    <text x="10" y="82" fill="#71717a" font-size="9">cols: id, email, subscription_tier</text>
   </g>
 
-  <!-- Node 8: Missing route placeholder -->
-  <g transform="translate(450, 530)">
-    <rect width="250" height="80" rx="6" fill="#18181b" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,4" />
-    <text x="12" y="24" fill="#ef4444" font-size="9" font-weight="700">MISSING ROUTE</text>
-    <text x="12" y="48" fill="#f4f4f5" font-size="11">DELETE /api/v1/projects/delete</text>
-    <text x="12" y="68" fill="#ef4444" font-size="9">404 at runtime</text>
+  <!-- Node: Project Model -->
+  <g transform="translate(596, 295)">
+    <rect width="240" height="98" rx="5" fill="#101014" stroke="#f59e0b" stroke-width="1.2" />
+    <rect x="0" y="0" width="240" height="24" rx="5" fill="#18181b" />
+    <text x="10" y="16" fill="#a1a1aa" font-size="9" font-weight="700">PRISMA MODEL</text>
+    <circle cx="226" cy="12" r="3.5" fill="#f59e0b" filter="url(#glow-amber)" />
+    <text x="10" y="44" fill="#f4f4f5" font-size="11" font-weight="600">Project</text>
+    <text x="10" y="62" fill="#71717a" font-size="9">prisma/schema.prisma:22</text>
+    <text x="10" y="82" fill="#71717a" font-size="9">cols: id, title, user_id</text>
+  </g>
+
+  <!-- Node: Supabase / Env Drift Note -->
+  <g transform="translate(596, 435)">
+    <rect width="240" height="85" rx="5" fill="#101014" stroke="#27272a" stroke-width="1" />
+    <rect x="0" y="0" width="240" height="24" rx="5" fill="#18181b" />
+    <text x="10" y="16" fill="#f59e0b" font-size="9" font-weight="700">ENV CONTRACT</text>
+    <circle cx="226" cy="12" r="3.5" fill="#f59e0b" />
+    <text x="10" y="44" fill="#f4f4f5" font-size="11" font-weight="600">.env.example DRIFT</text>
+    <text x="10" y="62" fill="#f59e0b" font-size="9">Missing: JWT_SIGNING_KEY</text>
+    <text x="10" y="74" fill="#71717a" font-size="8">Used in app/api/register/route.ts</text>
+  </g>
+
+  <!-- RIGHT-HAND CONTROL ROOM DRAWER: DIAGNOSTICS & BLAST RADIUS -->
+  <g transform="translate(860, 56)">
+    <!-- Drawer Container -->
+    <rect width="326" height="610" rx="6" fill="#0d0d10" stroke="#27272a" stroke-width="1" />
+    
+    <!-- Drawer Tabs -->
+    <rect x="0" y="0" width="326" height="34" rx="6" fill="#141418" />
+    <rect x="8" y="6" width="128" height="22" rx="3" fill="#1e1e24" stroke="#3f3f46" stroke-width="1" />
+    <text x="16" y="21" fill="#f4f4f5" font-size="10" font-weight="700">>_ DIAGNOSTICS</text>
+    <rect x="142" y="6" width="105" height="22" rx="3" fill="none" />
+    <text x="146" y="21" fill="#71717a" font-size="10" font-weight="600">BLAST RADIUS</text>
+    <circle cx="308" cy="17" r="4" fill="#ef4444" filter="url(#glow-rose)" />
+
+    <!-- Section 1: Active Issue Diagnostic -->
+    <g transform="translate(10, 42)">
+      <rect width="306" height="154" rx="4" fill="#121216" stroke="#ef4444" stroke-width="1" />
+      <rect x="8" y="8" width="130" height="18" rx="3" fill="#2a1215" />
+      <text x="14" y="21" fill="#ef4444" font-size="9" font-weight="700">🔴 FIELD_MISMATCH</text>
+      <text x="8" y="42" fill="#f4f4f5" font-size="10" font-weight="600">Payload key mismatch detected</text>
+      <text x="8" y="58" fill="#71717a" font-size="9">RegisterForm.tsx:20 ➔ route.ts:15</text>
+      
+      <!-- Diff Box -->
+      <rect x="8" y="68" width="290" height="48" rx="3" fill="#09090b" stroke="#27272a" stroke-width="1" />
+      <text x="14" y="84" fill="#ef4444" font-size="9">- Expected: { userId, sessionToken }</text>
+      <text x="14" y="102" fill="#10b981" font-size="9">+ Actual:   { user_id, token }</text>
+      
+      <!-- 1-Click Fix Button -->
+      <rect x="8" y="124" width="290" height="22" rx="3" fill="#27272a" />
+      <text x="75" y="139" fill="#f4f4f5" font-size="9" font-weight="600">⚡ Copy 1-Click Surgical Fix</text>
+    </g>
+
+    <!-- Section 2: Blast Radius Simulator -->
+    <g transform="translate(10, 206)">
+      <rect width="306" height="188" rx="4" fill="#121216" stroke="#27272a" stroke-width="1" />
+      <text x="10" y="18" fill="#f59e0b" font-size="9" font-weight="700">💥 BLAST RADIUS SIMULATOR</text>
+      <text x="10" y="34" fill="#a1a1aa" font-size="9">Target: model User (prisma/schema.prisma)</text>
+
+      <rect x="10" y="44" width="286" height="32" rx="3" fill="#1a1412" stroke="#f59e0b" stroke-width="0.8" />
+      <text x="18" y="58" fill="#f59e0b" font-size="9" font-weight="700">HIGH BLAST RISK: 3 Nodes Affected</text>
+      <text x="18" y="70" fill="#a1a1aa" font-size="8">Modifying User columns breaks downstream routes</text>
+
+      <!-- Cascade tree -->
+      <text x="14" y="96" fill="#ef4444" font-size="9">├─ 🔴 POST /api/register (Direct dependent)</text>
+      <text x="14" y="112" fill="#71717a" font-size="8">│    Column 'subscription_tier' read in create()</text>
+      <text x="14" y="130" fill="#ef4444" font-size="9">└─ 🔴 RegisterForm.tsx (Transitive cascade)</text>
+      <text x="14" y="146" fill="#71717a" font-size="8">     Payload consumption breaks at UI</text>
+
+      <rect x="10" y="158" width="286" height="20" rx="3" fill="#18181b" stroke="#3f3f46" stroke-width="0.8" />
+      <text x="78" y="172" fill="#a1a1aa" font-size="8">Simulated Cascade Depth: 2 layers</text>
+    </g>
+
+    <!-- Section 3: Live Wire Replay Probe -->
+    <g transform="translate(10, 404)">
+      <rect width="306" height="194" rx="4" fill="#121216" stroke="#27272a" stroke-width="1" />
+      <text x="10" y="18" fill="#10b981" font-size="9" font-weight="700">⚡ LIVE WIRE REPLAY</text>
+      <text x="10" y="34" fill="#71717a" font-size="9">Active Wire: fe:RegisterForm ➔ POST /api/register</text>
+
+      <rect x="10" y="44" width="286" height="30" rx="3" fill="#09090b" stroke="#27272a" stroke-width="1" />
+      <text x="16" y="58" fill="#f4f4f5" font-size="9" font-weight="600">POST</text>
+      <text x="46" y="58" fill="#a1a1aa" font-size="9">http://localhost:3000/api/register</text>
+      <text x="250" y="58" fill="#10b981" font-size="8">200 OK</text>
+      <text x="250" y="68" fill="#71717a" font-size="7">38ms</text>
+
+      <rect x="10" y="82" width="286" height="66" rx="3" fill="#09090b" stroke="#27272a" stroke-width="1" />
+      <text x="14" y="98" fill="#71717a" font-size="8">// Response Payload Snapshot</text>
+      <text x="14" y="112" fill="#ef4444" font-size="8">{ "user_id": "usr_9918", "token": "tok_..." }</text>
+      <text x="14" y="126" fill="#f59e0b" font-size="8">⚠ UI expected: { userId, sessionToken }</text>
+      <text x="14" y="140" fill="#ef4444" font-size="8">Result: UI rendered undefined</text>
+
+      <!-- Replay Trigger Button -->
+      <rect x="10" y="158" width="286" height="24" rx="3" fill="#10b981" />
+      <text x="100" y="174" fill="#09090b" font-size="9" font-weight="700">Replay Live Probe (38ms)</text>
+    </g>
   </g>
 </svg>
-
