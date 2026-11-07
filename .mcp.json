@@ -3,6 +3,10 @@
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "wireboard": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp/server.ts"]
     }
   }
 }

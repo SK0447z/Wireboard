@@ -20,10 +20,13 @@ import {
   AlertCircle,
   Network,
   Filter,
+  Copy,
+  Check,
 } from "lucide-react";
 import { AnchorNodeCard } from "@/components/AnchorNodeCard";
 import { InspectorDrawer } from "@/components/InspectorDrawer";
 import { layoutGraph, type AnchorNodeData, type ContractEdgeData } from "@/lib/layoutGraph";
+import { generateContractReport } from "@/engine/generateReport";
 import type {
   ArchitectureGraph,
   AnchorNode,
@@ -44,6 +47,7 @@ export default function WireboardPage() {
   const [selectedNode, setSelectedNode] = useState<AnchorNode | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<DiagnosticIssue | null>(null);
   const [filterMode, setFilterMode] = useState<"all" | "issues_only">("all");
+  const [copiedAudit, setCopiedAudit] = useState(false);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<AnchorNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<ContractEdgeData>>([]);
@@ -171,6 +175,19 @@ export default function WireboardPage() {
     setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
   }, [setEdges, setNodes]);
 
+  // Calculate Contract Integrity Score and report
+  const auditReport = useMemo(() => {
+    if (!graph) return null;
+    return generateContractReport(graph);
+  }, [graph]);
+
+  const handleCopyAuditMd = useCallback(() => {
+    if (!auditReport) return;
+    navigator.clipboard.writeText(auditReport.markdown);
+    setCopiedAudit(true);
+    setTimeout(() => setCopiedAudit(false), 2000);
+  }, [auditReport]);
+
   // Filter edges if "issues_only" active
   const filteredEdges = useMemo(() => {
     if (filterMode === "issues_only") {
@@ -268,7 +285,23 @@ export default function WireboardPage() {
 
         {/* Center / Right: Metrics & Filter Toggles */}
         {graph && (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Contract Integrity Score Badge */}
+            {auditReport && (
+              <span
+                className={`font-mono text-xs tabular-nums px-2.5 py-0.5 rounded border font-semibold flex items-center gap-1.5 ${
+                  auditReport.score === 100
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                    : auditReport.score >= 70
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                    : "bg-rose-500/10 border-rose-500/30 text-rose-400"
+                }`}
+                title="Contract Integrity Score"
+              >
+                Score: {auditReport.score}%
+              </span>
+            )}
+
             {/* Status Counters */}
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs text-zinc-400 tabular-nums px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">
@@ -290,6 +323,30 @@ export default function WireboardPage() {
                 {graph.summary.brokenWires} Broken
               </span>
             </div>
+
+            {/* Copy Audit MD Button */}
+            <button
+              type="button"
+              onClick={handleCopyAuditMd}
+              className={`h-7 px-2.5 rounded text-xs font-mono transition-colors border flex items-center gap-1.5 ${
+                copiedAudit
+                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                  : "bg-[#111115] hover:bg-zinc-800 text-zinc-300 border-zinc-800 hover:text-zinc-100"
+              }`}
+              title="Copy Audit Report in Markdown format to clipboard"
+            >
+              {copiedAudit ? (
+                <>
+                  <Check className="w-3.5 h-3.5 stroke-[2] text-emerald-400" />
+                  <span>Copied Audit MD</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 stroke-[1.5] text-zinc-400" />
+                  <span>Copy Audit MD</span>
+                </>
+              )}
+            </button>
 
             {/* Filter Toggle */}
             <div className="flex items-center rounded bg-[#111115] border border-zinc-800 p-0.5 text-xs font-mono">
