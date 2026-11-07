@@ -11,6 +11,7 @@ import {
   type Node,
   type Edge,
 } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import {
   RotateCw,
   FolderGit2,
@@ -176,7 +177,7 @@ export default function WireboardPage() {
   }, [edges, filterMode]);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#09090b] text-zinc-100 flex flex-col font-sans select-none">
+    <div className="flex flex-col h-screen w-screen bg-[#09090b] text-zinc-100 overflow-hidden font-sans select-none">
       {/* Top Control Bar */}
       <header className="h-12 border-b border-white/10 px-4 flex items-center justify-between bg-[#09090b] z-30 shrink-0">
         {/* Left: Brand & Path Controls */}
@@ -275,9 +276,9 @@ export default function WireboardPage() {
       </header>
 
       {/* Main Content: Canvas & Inspector */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex flex-1 min-h-0 w-full relative overflow-hidden">
         {/* React Flow Canvas */}
-        <div className="flex-1 h-full relative">
+        <div className="flex-1 h-full min-h-0 relative" style={{ width: "100%", height: "100%" }}>
           {loading && (
             <div className="absolute inset-0 bg-[#09090b]/80 backdrop-blur-xs flex items-center justify-center z-20">
               <div className="flex items-center gap-2.5 font-mono text-xs text-zinc-300">
