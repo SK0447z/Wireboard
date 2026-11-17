@@ -1,5 +1,10 @@
 # WIREBOARD
 
+> [!CAUTION]
+> **PROJECT SUNSET NOTICE (November 2026)**
+> **Wireboard is officially sunset and no longer under active development or maintenance.**
+> The codebase and documentation remain available for historical reference, architectural study, and offline use. All AST scanning engines (`ts-morph`), offline CLI checks (`npm run check`), and contract diffing algorithms remain functional as-is in this repository. Thank you to everyone who supported, tested, and built with Wireboard!
+
 **Full-stack contract compiler, AI lie detector, and visual architecture debugger for Next.js, Supabase, and Prisma.**
 
 ---
