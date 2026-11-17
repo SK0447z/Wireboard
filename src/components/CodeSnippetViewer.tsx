@@ -1,10 +1,11 @@
 "use client";
 
 import React from "react";
+import type { WireStatus } from "@/types/graph";
 
 interface CodeSnippetViewerProps {
   snippet: string;
-  severity?: "BROKEN" | "SUSPICIOUS" | "VERIFIED";
+  severity?: WireStatus;
   title?: string;
   filePath?: string;
   line?: number;
@@ -24,8 +25,10 @@ export function CodeSnippetViewer({
   const highlightClass =
     severity === "BROKEN"
       ? "bg-[#EF4444]/10 text-rose-300 border-l-2 border-l-[#EF4444] pl-2"
-      : severity === "SUSPICIOUS"
+      : severity === "SUSPICIOUS" || severity === "WARNING"
       ? "bg-[#F59E0B]/10 text-amber-300 border-l-2 border-l-[#F59E0B] pl-2"
+      : severity === "UNKNOWN"
+      ? "bg-zinc-800/40 text-zinc-300 border-l-2 border-l-zinc-500 pl-2"
       : "bg-[#10B981]/10 text-emerald-300 border-l-2 border-l-[#10B981] pl-2";
 
   return (

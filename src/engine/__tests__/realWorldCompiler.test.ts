@@ -273,7 +273,7 @@ export async function POST() {
       expect(issue?.targetSnippet).toContain("> ");
 
       // Check node codeSnippet
-      const feNode = graph.nodes.find((n) => n.id === "fe:ItemViewer.tsx");
+      const feNode = graph.nodes.find((n) => n.id === "fe:components/ItemViewer.tsx");
       expect(feNode?.codeSnippet).toBeDefined();
       expect(feNode?.codeSnippet).toMatch(/>\s+\d+\s+\|/);
     } finally {

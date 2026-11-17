@@ -21,7 +21,7 @@ describe("calculateBlastRadius", () => {
     // All connected nodes in the chain
     expect(result.affectedNodeIds).toContain("db:User");
     expect(result.affectedNodeIds).toContain("api:POST:/api/register");
-    expect(result.affectedNodeIds).toContain("fe:RegisterForm.tsx");
+    expect(result.affectedNodeIds).toContain("fe:app/register/RegisterForm.tsx");
 
     // Wires connected
     expect(result.affectedWires.length).toBeGreaterThanOrEqual(2);
@@ -53,7 +53,7 @@ describe("calculateBlastRadius", () => {
     const result = calculateBlastRadius(graph, "db:User");
     expect(result.affectedNodeIds).toContain("db:User");
     expect(result.affectedNodeIds).toContain("api:POST:/api/register");
-    expect(result.affectedNodeIds).toContain("fe:RegisterForm.tsx");
+    expect(result.affectedNodeIds).toContain("fe:app/register/RegisterForm.tsx");
     expect(result.affectedFiles[0].role).toBe("Database");
   });
 

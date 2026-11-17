@@ -11,6 +11,9 @@ export function parseGitHubUrl(input: string): { owner: string; repo: string } |
   if (!match) return null;
   const owner = match[1];
   const repo = match[2];
+  if (owner === "." || owner === ".." || repo === "." || repo === "..") {
+    return null;
+  }
   const validName = /^[a-zA-Z0-9._-]+$/;
   if (!validName.test(owner) || !validName.test(repo)) {
     return null;
@@ -27,7 +30,7 @@ export function cloneOrUpdateGitHubRepo(owner: string, repo: string): string {
     try {
       execFileSync("git", ["pull"], {
         cwd: targetDir,
-        timeout: 30000,
+        timeout: 15000,
         stdio: ["ignore", "pipe", "pipe"],
       });
       return targetDir;
@@ -37,10 +40,9 @@ export function cloneOrUpdateGitHubRepo(owner: string, repo: string): string {
   }
 
   fs.mkdirSync(scansDir, { recursive: true });
-  execFileSync("git", ["clone", "--depth", "1", cloneUrl, targetDir], {
-    timeout: 60000,
+  execFileSync("git", ["clone", "--depth", "1", "--", cloneUrl, targetDir], {
+    timeout: 15000,
     stdio: ["ignore", "pipe", "pipe"],
   });
   return targetDir;
 }
-

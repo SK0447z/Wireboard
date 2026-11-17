@@ -17,7 +17,7 @@ describe("scanFrontendComponents", () => {
     expect(result.nodes).toHaveLength(2);
 
     // 1. RegisterForm
-    const regNode = result.nodes.find((n) => n.id === "fe:RegisterForm.tsx");
+    const regNode = result.nodes.find((n) => n.id === "fe:app/register/RegisterForm.tsx");
     expect(regNode).toBeDefined();
     expect(regNode?.kind).toBe("FRONTEND_COMPONENT");
     expect(regNode?.label).toBe("RegisterForm");
@@ -25,7 +25,7 @@ describe("scanFrontendComponents", () => {
     expect(regNode?.line).toBe(5);
 
     const regFetch = result.fetchCalls.find(
-      (c) => c.componentNodeId === "fe:RegisterForm.tsx"
+      (c) => c.componentNodeId === "fe:app/register/RegisterForm.tsx"
     );
     expect(regFetch).toBeDefined();
     expect(regFetch?.url).toBe("/api/register");
@@ -37,7 +37,7 @@ describe("scanFrontendComponents", () => {
     expect(regFetch?.expectsResponseFields).toContain("sessionToken");
 
     // 2. ProjectList
-    const projNode = result.nodes.find((n) => n.id === "fe:ProjectList.tsx");
+    const projNode = result.nodes.find((n) => n.id === "fe:app/dashboard/ProjectList.tsx");
     expect(projNode).toBeDefined();
     expect(projNode?.kind).toBe("FRONTEND_COMPONENT");
     expect(projNode?.label).toBe("ProjectList");
@@ -45,7 +45,7 @@ describe("scanFrontendComponents", () => {
     expect(projNode?.line).toBe(11);
 
     const projCalls = result.fetchCalls.filter(
-      (c) => c.componentNodeId === "fe:ProjectList.tsx"
+      (c) => c.componentNodeId === "fe:app/dashboard/ProjectList.tsx"
     );
     expect(projCalls).toHaveLength(2);
 
@@ -95,7 +95,7 @@ describe("scanFrontendComponents", () => {
 
     const result = scanFrontendComponents(project, path.resolve("src"));
 
-    const compNode = result.nodes.find((n) => n.id === "fe:DynamicTestComponent.tsx");
+    const compNode = result.nodes.find((n) => n.id === "fe:components/DynamicTestComponent.tsx");
     expect(compNode).toBeDefined();
 
     // 1. Template literal normalized to [id]
@@ -168,7 +168,7 @@ describe("scanFrontendComponents", () => {
     );
 
     const result = scanFrontendComponents(project, path.resolve("src"));
-    const compNode = result.nodes.find((n) => n.id === "fe:AdvancedConsumer.tsx");
+    const compNode = result.nodes.find((n) => n.id === "fe:components/AdvancedConsumer.tsx");
     expect(compNode).toBeDefined();
 
     // 1. Profile fetch: inside try/catch -> hasErrorHandling = true; useState tracing -> displayName, email

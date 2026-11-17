@@ -39,11 +39,19 @@ export function getEdgeStyle(status: WireStatus) {
         animated: true,
       };
     case "SUSPICIOUS":
+    case "WARNING":
       return {
         stroke: "#F59E0B",
         strokeWidth: 2,
         strokeDasharray: "6 4",
         animated: true,
+      };
+    case "UNKNOWN":
+      return {
+        stroke: "#71717a",
+        strokeWidth: 1.75,
+        strokeDasharray: "4 4",
+        animated: false,
       };
     case "VERIFIED":
       return {
@@ -70,6 +78,10 @@ export function getNodeStatus(
     status = "BROKEN";
   } else if (connected.some((w) => w.status === "SUSPICIOUS")) {
     status = "SUSPICIOUS";
+  } else if (connected.some((w) => w.status === "WARNING")) {
+    status = "WARNING";
+  } else if (connected.some((w) => w.status === "UNKNOWN")) {
+    status = "UNKNOWN";
   }
 
   return { status, connectedWireIds, issuesCount };

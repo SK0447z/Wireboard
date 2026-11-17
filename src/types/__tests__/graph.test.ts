@@ -217,6 +217,22 @@ describe("ArchitectureGraph Schema", () => {
       })
     ).toThrow();
 
+    expect(ContractWireSchema.parse({
+      id: "ok:wire:unknown",
+      sourceId: "n1",
+      targetId: "n2",
+      status: "UNKNOWN",
+      issues: [],
+    }).status).toBe("UNKNOWN");
+
+    expect(ContractWireSchema.parse({
+      id: "ok:wire:warning",
+      sourceId: "n1",
+      targetId: "n2",
+      status: "WARNING",
+      issues: [],
+    }).status).toBe("WARNING");
+
     expect(() =>
       DiagnosticIssueSchema.parse({
         id: "bad:issue",

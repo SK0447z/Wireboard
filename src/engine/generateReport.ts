@@ -4,26 +4,27 @@ import type { ArchitectureGraph } from "../types/graph";
  * Calculates a deterministic Contract Integrity Score (0–100%) and generates
  * a crisp, shareable Markdown report.
  *
- * Scoring algorithm:
- * - If total wires === 0: 100%
- * - Broken wires penalized heavily (broken: 0 points, plus each broken wire lowers integrity score relative to total wires).
- *   Specifically: (verifiedWires / totalWires) * 100 - (suspiciousWires / totalWires) * 25
- *   Or ratio-based:
- *   points = verifiedWires * 1.0 + suspiciousWires * 0.5 - brokenWires * 0.5 (or broken = 0 with verified/total).
- *   With verifiedWires: 1, broken: 1 -> ratio of verified to total is 50%, or if penalizing broken heavily:
- *   Let's check the spec: "based on the ratio of verifiedWires to total wires (penalizing BROKEN wires heavily and SUSPICIOUS wires moderately)."
- *   If ratio of verified to total wires with penalty:
- *   Score = Math.max(0, Math.round(((verified - broken * 0.5 + suspicious * 0.25) / totalWires) * 100)) or
- *   Score = Math.max(0, Math.round(((verified * 1.0 + suspicious * 0.5) / totalWires) * 100))
+ * Scoring rules:
+ * - If totalWires === 0 or verifiableWires === 0: score is strictly 0% (never 100%).
+ * - UNKNOWN wires are excluded from verifiableWires.
+ * - Based on ratio of verifiedWires to verifiable wires, penalizing BROKEN wires heavily.
  */
 export function generateContractReport(graph: ArchitectureGraph): {
   score: number;
   markdown: string;
 } {
   const totalWires = graph.wires.length;
-  let score = 100;
+  const unknownWires = graph.summary.unknownWires ?? 0;
+  const verifiableWires =
+    graph.summary.coverage?.verifiableWires ??
+    Math.max(0, totalWires - unknownWires);
+  const coveragePercent =
+    graph.summary.coverage?.coveragePercent ??
+    (totalWires > 0 ? Math.round((verifiableWires / totalWires) * 100) : 0);
 
-  if (totalWires > 0) {
+  let score = 0;
+
+  if (totalWires > 0 && verifiableWires > 0) {
     const verified = graph.summary.verifiedWires;
     const suspicious = graph.summary.suspiciousWires;
     const broken = graph.summary.brokenWires;
@@ -32,7 +33,7 @@ export function generateContractReport(graph: ArchitectureGraph): {
       0,
       Math.min(
         100,
-        Math.round(((verified * 1.0 - broken * 1.0 + suspicious * 0.5) / totalWires) * 100)
+        Math.round(((verified * 1.0 - broken * 1.0 + suspicious * 0.5) / verifiableWires) * 100)
       )
     );
   }
@@ -44,14 +45,16 @@ export function generateContractReport(graph: ArchitectureGraph): {
   lines.push(`- **Project:** \`${graph.projectName}\``);
   lines.push(`- **Scanned At:** \`${graph.scannedAt}\``);
   lines.push(`- **Contract Integrity Score: ${score}%**`);
+  lines.push(`- **Scan Coverage: ${coveragePercent}%**`);
+  lines.push(`- **Unknown Wires: ${unknownWires}**`);
   lines.push("");
 
   lines.push("## Summary");
   lines.push("");
-  lines.push("| Total Nodes | Verified Wires 🟢 | Suspicious Wires 🟡 | Broken Wires 🔴 |");
-  lines.push("| :--- | :--- | :--- | :--- |");
+  lines.push("| Total Nodes | Verified Wires 🟢 | Suspicious Wires 🟡 | Broken Wires 🔴 | Unknown Wires ⚪ |");
+  lines.push("| :--- | :--- | :--- | :--- | :--- |");
   lines.push(
-    `| ${graph.summary.totalNodes} | ${graph.summary.verifiedWires} | ${graph.summary.suspiciousWires} | ${graph.summary.brokenWires} |`
+    `| ${graph.summary.totalNodes} | ${graph.summary.verifiedWires} | ${graph.summary.suspiciousWires} | ${graph.summary.brokenWires} | ${unknownWires} |`
   );
   lines.push("");
 
@@ -68,7 +71,7 @@ export function generateContractReport(graph: ArchitectureGraph): {
     lines.push("");
   } else {
     for (const [index, issue] of issues.entries()) {
-      const icon = issue.severity === "BROKEN" ? "🔴" : "🟡";
+      const icon = issue.severity === "BROKEN" ? "🔴" : issue.severity === "SUSPICIOUS" ? "🟡" : "⚪";
       lines.push(`### ${index + 1}. ${icon} [${issue.severity}] ${issue.code}: ${issue.title}`);
       lines.push("");
       lines.push(`- **Explanation:** ${issue.explanation}`);
@@ -77,6 +80,13 @@ export function generateContractReport(graph: ArchitectureGraph): {
           issue.targetFile ? ` -> \`${issue.targetFile}:${issue.targetLine ?? 1}\`` : ""
         }`
       );
+
+      if (issue.evidence && issue.evidence.length > 0) {
+        lines.push("- **Evidence:**");
+        for (const ev of issue.evidence) {
+          lines.push(`  - ${ev}`);
+        }
+      }
 
       if (issue.expectedShape || issue.actualShape) {
         lines.push("- **Contract Diff:**");

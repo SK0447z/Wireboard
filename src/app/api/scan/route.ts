@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server";
-import path from "node:path";
-import fs from "node:fs";
 import { scanRepository } from "@/engine/buildGraph";
 import { parseGitHubUrl, cloneOrUpdateGitHubRepo } from "@/lib/github";
+import { validateScanPath } from "@/lib/security";
 import type { ArchitectureGraph } from "@/types/graph";
 
 async function handleScan(
   target?: string
 ): Promise<{ graph?: ArchitectureGraph; error?: string; status?: number }> {
   if (!target || target === "broken-app") {
-    const resolvedPath = path.resolve(process.cwd(), "test-fixtures/broken-app");
-    if (!fs.existsSync(resolvedPath)) {
-      return { error: `Directory does not exist: ${resolvedPath}`, status: 400 };
+    const defaultTarget = "test-fixtures/broken-app";
+    const validation = validateScanPath(defaultTarget);
+    if (!validation.valid || !validation.resolvedPath) {
+      return {
+        error: validation.error || `Directory does not exist: ${defaultTarget}`,
+        status: validation.status || 400,
+      };
     }
-    const graph = scanRepository(resolvedPath);
+    const graph = scanRepository(validation.resolvedPath);
     return { graph };
   }
 
@@ -43,16 +46,16 @@ async function handleScan(
     }
   }
 
-  // Local directory path
-  const resolvedPath = path.isAbsolute(target)
-    ? target
-    : path.resolve(process.cwd(), target);
-
-  if (!fs.existsSync(resolvedPath)) {
-    return { error: `Directory does not exist: ${resolvedPath}`, status: 400 };
+  // Local directory path validation with strict filesystem workspace boundary enforcement
+  const validation = validateScanPath(target);
+  if (!validation.valid || !validation.resolvedPath) {
+    return {
+      error: validation.error || `Directory does not exist: ${target}`,
+      status: validation.status || 400,
+    };
   }
 
-  const graph = scanRepository(resolvedPath);
+  const graph = scanRepository(validation.resolvedPath);
   return { graph };
 }
 
@@ -95,4 +98,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

@@ -415,7 +415,14 @@ export function scanFrontendComponents(
       }
     }
 
-    const componentNodeId = `fe:${baseName}`;
+    const isGenericRouter = /^(page|layout|index)\.[tj]sx$/.test(baseName);
+    if (isGenericRouter) {
+      const dirName = path.dirname(relPath);
+      const parentFolder = dirName === "." || dirName === "" ? "" : path.basename(dirName);
+      compName = parentFolder ? `${parentFolder}/${baseName}` : baseName;
+    }
+
+    const componentNodeId = `fe:${relPath.replace(/\\/g, "/")}`;
     const compNode: AnchorNode = {
       id: componentNodeId,
       kind: "FRONTEND_COMPONENT",

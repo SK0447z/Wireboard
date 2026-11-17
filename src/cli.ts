@@ -27,11 +27,15 @@ function runCli() {
 
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`Contract Integrity Score: ${score}%`);
+    if (graph.summary.coverage) {
+      console.log(`Scan Coverage:            ${graph.summary.coverage.coveragePercent}% (${graph.summary.coverage.verifiableWires}/${graph.summary.coverage.totalWires} wires verifiable)`);
+    }
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`Total Nodes:      ${graph.summary.totalNodes}`);
     console.log(`Verified Wires:   🟢 ${graph.summary.verifiedWires}`);
     console.log(`Suspicious Wires: 🟡 ${graph.summary.suspiciousWires}`);
     console.log(`Broken Wires:     🔴 ${graph.summary.brokenWires}`);
+    console.log(`Unknown Wires:    ⚪ ${graph.summary.unknownWires ?? 0}`);
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
     const issues = graph.issues.length > 0 ? graph.issues : graph.wires.flatMap((w) => w.issues);

@@ -1,8 +1,16 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 
 describe("API: /api/replay", () => {
+  beforeEach(() => {
+    process.env.WIREBOARD_ALLOW_LOCAL_REPLAY = "true";
+  });
+
+  afterEach(() => {
+    delete process.env.WIREBOARD_ALLOW_LOCAL_REPLAY;
+  });
+
   it("returns 400 if url is missing", async () => {
     const req = new NextRequest("http://localhost:3000/api/replay", {
       method: "POST",

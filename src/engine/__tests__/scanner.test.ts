@@ -70,7 +70,7 @@ describe("scanRepository Integration Test", () => {
     // 2. The GET /api/projects connection is VERIFIED (Green wire) with 0 issues
     const getProjectsWire = graph.wires.find(
       (w) =>
-        w.sourceId === "fe:ProjectList.tsx" &&
+        w.sourceId === "fe:app/dashboard/ProjectList.tsx" &&
         w.targetId === "api:GET:/api/projects"
     );
     expect(getProjectsWire).toBeDefined();
@@ -108,7 +108,7 @@ describe("scanRepository Integration Test", () => {
     expect(fixtureNodes).toHaveLength(0);
 
     // 2. Discover Wireboard page and /api/scan route
-    const pageNode = graph.nodes.find((n) => n.id === "fe:page.tsx");
+    const pageNode = graph.nodes.find((n) => n.id === "fe:src/app/page.tsx");
     expect(pageNode).toBeDefined();
 
     const scanRouteNode = graph.nodes.find((n) => n.id === "api:POST:/api/scan");
@@ -116,7 +116,7 @@ describe("scanRepository Integration Test", () => {
 
     // 3. Find VERIFIED Green wire between page.tsx and POST /api/scan
     const scanWire = graph.wires.find(
-      (w) => w.sourceId === "fe:page.tsx" && w.targetId === "api:POST:/api/scan"
+      (w) => w.sourceId === "fe:src/app/page.tsx" && w.targetId === "api:POST:/api/scan"
     );
     expect(scanWire).toBeDefined();
     expect(scanWire?.status).toBe("VERIFIED");
@@ -154,7 +154,7 @@ describe("scanRepository Integration Test", () => {
 
       // Check wire between UserProfile component and profiles DB_TABLE
       const wire = graph.wires.find(
-        (w) => w.sourceId === "fe:UserProfile.tsx" && w.targetId === "db:profiles"
+        (w) => w.sourceId === "fe:components/UserProfile.tsx" && w.targetId === "db:profiles"
       );
       expect(wire).toBeDefined();
       expect(wire?.status).toBe("VERIFIED");

@@ -119,6 +119,10 @@ export function scanRepository(
         severity: "BROKEN",
         code: "MISSING_ENDPOINT",
         confidence: "HIGH",
+        evidence: [
+          `${sourceNode.filePath}:${fetchCall.fetchLine}: calls ${fetchCall.method} ${fetchCall.url}`,
+          `No matching route handler found for ${fetchCall.method} ${fetchCall.url} in backend`,
+        ],
         title: `Call to non-existent route ${fetchCall.method} ${fetchCall.url}`,
         explanation: `${sourceNode.label} calls ${fetchCall.method} ${fetchCall.url}, but no matching route handler exists in the backend.`,
         sourceFile: sourceNode.filePath,
@@ -166,6 +170,11 @@ export function scanRepository(
           severity: "BROKEN",
           code: "REQUEST_MISMATCH",
           confidence: "HIGH",
+          evidence: [
+            `${sourceNode.filePath}:${fetchCall.fetchLine}: sends payload keys [${sentKeys.join(", ")}]`,
+            `${targetRoute.node.filePath}:${targetRoute.node.line}: expects payload keys [${expectedKeys.join(", ")}]`,
+            `Missing required payload key(s): [${missingKeys.join(", ")}]`,
+          ],
           title: `Request body mismatch: missing [${missingKeys.join(", ")}]`,
           explanation: `${sourceNode.label} sends [${sentKeys.join(", ")}], but ${targetRoute.node.label} expects [${expectedKeys.join(", ")}].`,
           sourceFile: sourceNode.filePath,
@@ -205,6 +214,11 @@ export function scanRepository(
           severity: "BROKEN",
           code: "FIELD_MISMATCH",
           confidence: "HIGH",
+          evidence: [
+            `${sourceNode.filePath}:${fetchCall.responseVarLine || fetchCall.fetchLine}: reads response fields [${fetchCall.expectsResponseFields.join(", ")}]`,
+            `${targetRoute.node.filePath}:${targetRoute.node.line}: returns payload keys [${Object.keys(returnsPayload).join(", ")}]`,
+            `Missing response field(s): [${missingFields.join(", ")}]`,
+          ],
           title: `Payload key mismatch: expected [${missingFields.join(", ")}]`,
           explanation: `${sourceNode.label} expects response fields [${missingFields.join(", ")}], but ${targetRoute.node.label} returns [${Object.keys(returnsPayload).join(", ")}].`,
           sourceFile: sourceNode.filePath,
@@ -229,6 +243,9 @@ export function scanRepository(
         severity: "SUSPICIOUS",
         code: "TYPE_CHEAT",
         confidence: "HIGH",
+        evidence: [
+          `${sourceNode.filePath}:${fetchCall.typeCheatLine || fetchCall.fetchLine}: casts response with 'as any'/'as unknown' at network boundary`,
+        ],
         title: "Type assertion `as any` at network boundary",
         explanation: `${sourceNode.label} casts response to \`any\`, masking contract drift.`,
         sourceFile: sourceNode.filePath,
@@ -252,6 +269,9 @@ export function scanRepository(
           severity: "SUSPICIOUS",
           code: "SWALLOWED_ERROR",
           confidence: "HIGH",
+          evidence: [
+            `${targetRoute.node.filePath}:${err.line}: catch block returns HTTP ${err.status} instead of error status`,
+          ],
           title: `Swallowed error in catch block returns HTTP ${err.status}`,
           explanation: `Route handler ${targetRoute.node.label} catches errors and returns HTTP ${err.status} instead of a 4xx/5xx status code.`,
           sourceFile: targetRoute.node.filePath,
@@ -274,6 +294,9 @@ export function scanRepository(
         severity: "SUSPICIOUS",
         code: "MISSING_ERROR_HANDLING",
         confidence: "MEDIUM",
+        evidence: [
+          `${sourceNode.filePath}:${fetchCall.fetchLine}: fetch invocation not wrapped in try/catch or status check`,
+        ],
         title: `Missing error handling for ${fetchCall.method} ${fetchCall.url}`,
         explanation: `${sourceNode.label} executes fetch without wrapping in a try/catch block or checking res.ok.`,
         sourceFile: sourceNode.filePath,
@@ -287,12 +310,24 @@ export function scanRepository(
       wireIssues.push(issue);
     }
 
-    // Determine wire status precedence: BROKEN > SUSPICIOUS > VERIFIED
-    let wireStatus: "VERIFIED" | "SUSPICIOUS" | "BROKEN" = "VERIFIED";
+    // Determine wire status precedence: BROKEN > SUSPICIOUS > WARNING > VERIFIED / UNKNOWN
+    let wireStatus: "VERIFIED" | "SUSPICIOUS" | "BROKEN" | "WARNING" | "UNKNOWN" = "VERIFIED";
     if (wireIssues.some((i) => i.severity === "BROKEN")) {
       wireStatus = "BROKEN";
     } else if (wireIssues.some((i) => i.severity === "SUSPICIOUS")) {
       wireStatus = "SUSPICIOUS";
+    } else if (wireIssues.some((i) => i.severity === "WARNING")) {
+      wireStatus = "WARNING";
+    } else {
+      const hasBackendPayload =
+        (targetRoute.node.returnsPayload && Object.keys(targetRoute.node.returnsPayload).length > 0) ||
+        (targetRoute.node.expectsPayload && Object.keys(targetRoute.node.expectsPayload).length > 0);
+      const hasFrontendPayload =
+        fetchCall.expectsResponseFields.length > 0 ||
+        (fetchCall.sentBodyFields && fetchCall.sentBodyFields.length > 0);
+      const hasSufficientEvidence = hasBackendPayload || hasFrontendPayload;
+
+      wireStatus = hasSufficientEvidence ? "VERIFIED" : "UNKNOWN";
     }
 
     wires.push({
@@ -333,6 +368,10 @@ export function scanRepository(
             severity: "BROKEN",
             code: "SCHEMA_DRIFT",
             confidence: "HIGH",
+            evidence: [
+              `${route.node.filePath}:${interaction.line}: writes database key '${key}'`,
+              `${modelInfo.filePath}:${modelInfo.line}: Prisma model '${modelInfo.modelName}' defines columns [${Object.keys(modelInfo.columns).join(", ")}]`,
+            ],
             title: `Column mismatch: ${key} vs ${matchedCol || "unknown"}`,
             explanation: `Backend route writes \`${key}\`, but Prisma model \`${modelInfo.modelName}\` defines \`${matchedCol || "unknown"}\`.`,
             sourceFile: route.node.filePath,
@@ -362,6 +401,9 @@ export function scanRepository(
             severity: "SUSPICIOUS",
             code: "SWALLOWED_ERROR",
             confidence: "HIGH",
+            evidence: [
+              `${route.node.filePath}:${err.line}: catch block returns HTTP ${err.status} instead of 500`,
+            ],
             title: `Swallowed error in catch block returns HTTP ${err.status}`,
             explanation: `Route handler ${route.node.label} catches errors and returns HTTP ${err.status} instead of a 4xx/5xx status code.`,
             sourceFile: route.node.filePath,
@@ -376,7 +418,7 @@ export function scanRepository(
         }
       }
 
-      let wireStatus: "VERIFIED" | "SUSPICIOUS" | "BROKEN" = "VERIFIED";
+      let wireStatus: "VERIFIED" | "SUSPICIOUS" | "BROKEN" | "WARNING" | "UNKNOWN" = "VERIFIED";
       if (wireIssues.some((i) => i.severity === "BROKEN")) {
         wireStatus = "BROKEN";
       } else if (wireIssues.some((i) => i.severity === "SUSPICIOUS")) {
@@ -452,6 +494,10 @@ export function scanRepository(
             severity: "BROKEN",
             code: "SCHEMA_DRIFT",
             confidence: "HIGH",
+            evidence: [
+              `${interaction.sourceFile}:${interaction.line}: writes column '${col}'`,
+              `${modelInfo.filePath}:${modelInfo.line}: model '${modelInfo.modelName}' defines columns [${Object.keys(modelInfo.columns).join(", ")}]`,
+            ],
             title: `Column mismatch: ${col} vs ${matchedCol || "unknown"}`,
             explanation: `${sourceNode.label} writes \`${col}\`, but model \`${modelInfo.modelName}\` defines \`${matchedCol || "unknown"}\`.`,
             sourceFile: interaction.sourceFile,
@@ -480,6 +526,9 @@ export function scanRepository(
             severity: "SUSPICIOUS",
             code: "UNCHECKED_DB_ERROR",
             confidence: "HIGH",
+            evidence: [
+              `${sourceNode.filePath}:${err.line}: query on table '${err.table}' does not check or destructure { error }`,
+            ],
             title: `Unchecked Supabase query error on ${err.table}`,
             explanation: `${sourceNode.label} calls supabase.from("${err.table}").${err.operation}(...) without destructuring or checking \`{ error }\`.`,
             sourceFile: sourceNode.filePath,
@@ -495,7 +544,7 @@ export function scanRepository(
       }
     }
 
-    let wireStatus: "VERIFIED" | "SUSPICIOUS" | "BROKEN" = "VERIFIED";
+    let wireStatus: "VERIFIED" | "SUSPICIOUS" | "BROKEN" | "WARNING" | "UNKNOWN" = "VERIFIED";
     if (wireIssues.some((i) => i.severity === "BROKEN")) {
       wireStatus = "BROKEN";
     } else if (wireIssues.some((i) => i.severity === "SUSPICIOUS")) {
@@ -522,7 +571,7 @@ export function scanRepository(
     }
   }
 
-  // 4. Wire Type D: External Services Wires
+  // 4. Wire Type D: External Services Wires (UNKNOWN contract status without target AST)
   for (const ext of frontendResult.externalServices || []) {
     const extNodeId = `ext:${ext.serviceName}`;
     const extNode = nodesMap.get(extNodeId);
@@ -533,7 +582,7 @@ export function scanRepository(
           id: wireId,
           sourceId: ext.sourceNodeId,
           targetId: extNode.id,
-          status: "VERIFIED",
+          status: "UNKNOWN",
           label: ext.urlOrTarget,
           issues: [],
         });
@@ -581,6 +630,10 @@ export function scanRepository(
           severity: "SUSPICIOUS",
           code: "ENV_DRIFT",
           confidence: "HIGH",
+          evidence: [
+            `${access.filePath}:${access.line}: references process.env.${access.key}`,
+            `${envResult.envPath}:1: variable ${access.key} not declared in .env.example`,
+          ],
           title: `Environment variable drift: ${access.key} not in .env.example`,
           explanation: `${node?.label || access.nodeId} references process.env.${access.key}, which is not declared in .env.example.`,
           sourceFile: access.filePath,
@@ -611,6 +664,10 @@ export function scanRepository(
           severity: "SUSPICIOUS",
           code: "DEAD_ENDPOINT",
           confidence: "MEDIUM",
+          evidence: [
+            `${route.node.filePath}:${route.node.line}: route handler defined for ${route.node.label}`,
+            `No frontend caller found matching route path ${route.node.routePath}`,
+          ],
           title: `Dead route endpoint: ${route.node.label} has 0 callers`,
           explanation: `Route handler ${route.node.label} exists in backend but is not called by any discovered frontend component.`,
           sourceFile: route.node.filePath,
@@ -634,11 +691,37 @@ export function scanRepository(
   const nodes = Array.from(nodesMap.values());
   const allIssues = wires.flatMap((w) => w.issues);
 
+  const verifiedWires = wires.filter((w) => w.status === "VERIFIED").length;
+  const brokenWires = wires.filter((w) => w.status === "BROKEN").length;
+  const suspiciousWires = wires.filter((w) => w.status === "SUSPICIOUS").length;
+  const warningWires = wires.filter((w) => w.status === "WARNING").length;
+  const unknownWires = wires.filter((w) => w.status === "UNKNOWN").length;
+  const totalWires = wires.length;
+  const verifiableWires = totalWires - unknownWires;
+  const coveragePercent = totalWires > 0 ? Math.round((verifiableWires / totalWires) * 100) : 0;
+
+  const scannedFiles = new Set<string>();
+  for (const sf of project.getSourceFiles()) {
+    scannedFiles.add(sf.getFilePath());
+  }
+  for (const node of prismaResult.nodes) {
+    if (node.filePath) scannedFiles.add(node.filePath);
+  }
+  if (envResult?.envPath) scannedFiles.add(envResult.envPath);
+
   const summary: GraphSummary = {
     totalNodes: nodes.length,
-    verifiedWires: wires.filter((w) => w.status === "VERIFIED").length,
-    brokenWires: wires.filter((w) => w.status === "BROKEN").length,
-    suspiciousWires: wires.filter((w) => w.status === "SUSPICIOUS").length,
+    verifiedWires,
+    brokenWires,
+    suspiciousWires,
+    warningWires,
+    unknownWires,
+    coverage: {
+      filesScanned: scannedFiles.size,
+      totalWires,
+      verifiableWires,
+      coveragePercent,
+    },
   };
 
   const graph: ArchitectureGraph = {

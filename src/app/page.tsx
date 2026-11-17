@@ -500,16 +500,30 @@ export default function WireboardPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-[#EF4444]" />
                 {graph.summary.brokenWires} Broken
               </span>
+              {(graph.summary.unknownWires ?? 0) > 0 && (
+                <span className="px-2 flex items-center gap-1.5 text-zinc-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#71717a]" />
+                  {graph.summary.unknownWires} Unknown
+                </span>
+              )}
+              {graph.summary.coverage && (
+                <span className="px-2 flex items-center gap-1.5 text-zinc-400">
+                  Coverage{" "}
+                  <span className="text-zinc-200 font-semibold tabular-nums">
+                    {graph.summary.coverage.coveragePercent}%
+                  </span>
+                </span>
+              )}
               {auditReport && (
                 <span className="pl-2 font-medium">
                   Integrity{" "}
                   <span
                     className={
                       auditReport.score === 100
-                        ? "text-emerald-400 font-semibold"
+                        ? "text-emerald-400 font-semibold tabular-nums"
                         : auditReport.score >= 70
-                        ? "text-amber-400 font-semibold"
-                        : "text-rose-400 font-semibold"
+                        ? "text-amber-400 font-semibold tabular-nums"
+                        : "text-rose-400 font-semibold tabular-nums"
                     }
                   >
                     {auditReport.score}%

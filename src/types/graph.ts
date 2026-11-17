@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-export const WireStatusSchema = z.enum(["VERIFIED", "SUSPICIOUS", "BROKEN"]);
+export const WireStatusSchema = z.enum([
+  "VERIFIED",
+  "SUSPICIOUS",
+  "BROKEN",
+  "WARNING",
+  "UNKNOWN",
+]);
 export type WireStatus = z.infer<typeof WireStatusSchema>;
 
 export const NodeKindSchema = z.enum([
@@ -61,6 +67,7 @@ export const DiagnosticIssueSchema = z.object({
   severity: WireStatusSchema,
   code: DiagnosticCodeSchema,
   confidence: ConfidenceSchema.default("HIGH"),
+  evidence: z.array(z.string()).default([]),
   title: z.string(),
   explanation: z.string(),
   sourceFile: z.string(),
@@ -85,11 +92,22 @@ export const ContractWireSchema = z.object({
 });
 export type ContractWire = z.infer<typeof ContractWireSchema>;
 
+export const ScanCoverageSchema = z.object({
+  filesScanned: z.number(),
+  totalWires: z.number(),
+  verifiableWires: z.number(),
+  coveragePercent: z.number(),
+});
+export type ScanCoverage = z.infer<typeof ScanCoverageSchema>;
+
 export const GraphSummarySchema = z.object({
   totalNodes: z.number(),
   verifiedWires: z.number(),
   brokenWires: z.number(),
   suspiciousWires: z.number(),
+  warningWires: z.number().default(0),
+  unknownWires: z.number().default(0),
+  coverage: ScanCoverageSchema.optional(),
 });
 export type GraphSummary = z.infer<typeof GraphSummarySchema>;
 
@@ -102,4 +120,3 @@ export const ArchitectureGraphSchema = z.object({
   summary: GraphSummarySchema,
 });
 export type ArchitectureGraph = z.infer<typeof ArchitectureGraphSchema>;
-

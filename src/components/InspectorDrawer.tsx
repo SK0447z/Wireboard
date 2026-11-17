@@ -78,6 +78,8 @@ export function InspectorDrawer({
     );
     if (connectedWires.some((w) => w.status === "BROKEN")) return "BROKEN";
     if (connectedWires.some((w) => w.status === "SUSPICIOUS")) return "SUSPICIOUS";
+    if (connectedWires.some((w) => w.status === "WARNING")) return "WARNING";
+    if (connectedWires.some((w) => w.status === "UNKNOWN")) return "UNKNOWN";
     return "VERIFIED";
   }, [graph.wires, selectedNode]);
 
