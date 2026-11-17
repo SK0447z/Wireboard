@@ -43,6 +43,41 @@ export function scanRepository(
     return snippet ? snippet : undefined;
   };
 
+  const calculateDynamicConfidence = (params: {
+    code: string;
+    isLiteralEndpoint?: boolean;
+    hasTypeCheat?: boolean;
+    hasDynamicSegments?: boolean;
+    hasExplicitSchema?: boolean;
+    hasExplicitStatus?: boolean;
+  }): "HIGH" | "MEDIUM" | "LOW" => {
+    if (params.hasTypeCheat && (params.code === "FIELD_MISMATCH" || params.code === "REQUEST_MISMATCH")) {
+      return "LOW";
+    }
+
+    switch (params.code) {
+      case "MISSING_ENDPOINT":
+        return params.isLiteralEndpoint ? "HIGH" : "MEDIUM";
+      case "REQUEST_MISMATCH":
+      case "FIELD_MISMATCH":
+        return params.hasDynamicSegments ? "MEDIUM" : "HIGH";
+      case "SCHEMA_DRIFT":
+        return params.hasExplicitSchema !== false ? "HIGH" : "MEDIUM";
+      case "TYPE_CHEAT":
+        return "HIGH";
+      case "SWALLOWED_ERROR":
+        return params.hasExplicitStatus !== false ? "HIGH" : "MEDIUM";
+      case "UNCHECKED_DB_ERROR":
+      case "ENV_DRIFT":
+        return "HIGH";
+      case "MISSING_ERROR_HANDLING":
+      case "DEAD_ENDPOINT":
+        return "MEDIUM";
+      default:
+        return "HIGH";
+    }
+  };
+
   // Add all discovered nodes
   for (const node of frontendResult.nodes) {
     node.codeSnippet = getSnippet(node.filePath, node.line);
@@ -113,15 +148,22 @@ export function scanRepository(
       const wireId = `wire:${sourceNode.id}->${targetNode.id}`;
       const issueId = `issue:missing-endpoint-${sourceNode.id}-${fetchCall.method}-${fetchCall.url.replace(/[\/?#=&]/g, "-")}`;
 
+      const isLiteral = !fetchCall.url.includes("[") && !fetchCall.url.includes("$");
+      const confidence = calculateDynamicConfidence({
+        code: "MISSING_ENDPOINT",
+        isLiteralEndpoint: isLiteral,
+      });
+
       const issue: DiagnosticIssue = {
         id: issueId,
         wireId,
         severity: "BROKEN",
         code: "MISSING_ENDPOINT",
-        confidence: "HIGH",
+        confidence,
         evidence: [
           `${sourceNode.filePath}:${fetchCall.fetchLine}: calls ${fetchCall.method} ${fetchCall.url}`,
           `No matching route handler found for ${fetchCall.method} ${fetchCall.url} in backend`,
+          `AST resolution: ${confidence} confidence (${isLiteral ? "literal endpoint path" : "dynamic route segment"})`,
         ],
         title: `Call to non-existent route ${fetchCall.method} ${fetchCall.url}`,
         explanation: `${sourceNode.label} calls ${fetchCall.method} ${fetchCall.url}, but no matching route handler exists in the backend.`,
@@ -153,27 +195,39 @@ export function scanRepository(
     // Case 2 (REQUEST_MISMATCH - RED WIRE): Frontend sends request body keys missing from what Backend expects
     if (
       targetRoute.node.expectsPayload &&
-      fetchCall.sentBodyFields &&
-      fetchCall.sentBodyFields.length > 0
+      Object.keys(targetRoute.node.expectsPayload).length > 0
     ) {
       const expectedKeys = Object.keys(targetRoute.node.expectsPayload);
-      const sentKeys = fetchCall.sentBodyFields;
+      const sentKeys = fetchCall.sentBodyFields || [];
       const missingKeys = expectedKeys.filter((k) => !sentKeys.includes(k));
 
-      if (missingKeys.length > 0) {
+      if (
+        missingKeys.length > 0 &&
+        (sentKeys.length > 0 || (fetchCall.method !== "GET" && fetchCall.method !== "DELETE"))
+      ) {
         const sentShape: Record<string, string> = {};
         for (const k of sentKeys) sentShape[k] = "string";
+
+        const hasDynamic = fetchCall.url.includes("[") || fetchCall.url.includes("$");
+        const confidence = calculateDynamicConfidence({
+          code: "REQUEST_MISMATCH",
+          hasDynamicSegments: hasDynamic,
+          hasTypeCheat: fetchCall.hasTypeCheat,
+        });
 
         const issue: DiagnosticIssue = {
           id: `issue:request-mismatch-${sourceNode.id}-${targetRoute.node.id}`,
           wireId,
           severity: "BROKEN",
           code: "REQUEST_MISMATCH",
-          confidence: "HIGH",
+          confidence,
           evidence: [
-            `${sourceNode.filePath}:${fetchCall.fetchLine}: sends payload keys [${sentKeys.join(", ")}]`,
+            sentKeys.length > 0
+              ? `${sourceNode.filePath}:${fetchCall.fetchLine}: sends payload keys [${sentKeys.join(", ")}]`
+              : `${sourceNode.filePath}:${fetchCall.fetchLine}: sends request with empty or missing payload body`,
             `${targetRoute.node.filePath}:${targetRoute.node.line}: expects payload keys [${expectedKeys.join(", ")}]`,
             `Missing required payload key(s): [${missingKeys.join(", ")}]`,
+            `AST resolution: ${confidence} confidence (${fetchCall.hasTypeCheat ? "degraded by type cheat" : hasDynamic ? "dynamic route match" : "strictly typed contract"})`,
           ],
           title: `Request body mismatch: missing [${missingKeys.join(", ")}]`,
           explanation: `${sourceNode.label} sends [${sentKeys.join(", ")}], but ${targetRoute.node.label} expects [${expectedKeys.join(", ")}].`,
@@ -208,16 +262,24 @@ export function scanRepository(
           expectedShape[f] = "string";
         }
 
+        const hasDynamic = fetchCall.url.includes("[") || fetchCall.url.includes("$");
+        const confidence = calculateDynamicConfidence({
+          code: "FIELD_MISMATCH",
+          hasDynamicSegments: hasDynamic,
+          hasTypeCheat: fetchCall.hasTypeCheat,
+        });
+
         const issue: DiagnosticIssue = {
           id: `issue:field-mismatch-${sourceNode.id}-${targetRoute.node.id}`,
           wireId,
           severity: "BROKEN",
           code: "FIELD_MISMATCH",
-          confidence: "HIGH",
+          confidence,
           evidence: [
             `${sourceNode.filePath}:${fetchCall.responseVarLine || fetchCall.fetchLine}: reads response fields [${fetchCall.expectsResponseFields.join(", ")}]`,
             `${targetRoute.node.filePath}:${targetRoute.node.line}: returns payload keys [${Object.keys(returnsPayload).join(", ")}]`,
             `Missing response field(s): [${missingFields.join(", ")}]`,
+            `AST resolution: ${confidence} confidence (${fetchCall.hasTypeCheat ? "degraded by type cheat" : "strictly typed response property access"})`,
           ],
           title: `Payload key mismatch: expected [${missingFields.join(", ")}]`,
           explanation: `${sourceNode.label} expects response fields [${missingFields.join(", ")}], but ${targetRoute.node.label} returns [${Object.keys(returnsPayload).join(", ")}].`,
@@ -237,14 +299,16 @@ export function scanRepository(
 
     // Case 4 (TYPE_CHEAT - YELLOW WIRE): Frontend casts response with `as any` or `as unknown`
     if (fetchCall.hasTypeCheat) {
+      const confidence = calculateDynamicConfidence({ code: "TYPE_CHEAT" });
       const issue: DiagnosticIssue = {
         id: `issue:type-cheat-${sourceNode.id}-${targetRoute.node.id}`,
         wireId,
         severity: "SUSPICIOUS",
         code: "TYPE_CHEAT",
-        confidence: "HIGH",
+        confidence,
         evidence: [
           `${sourceNode.filePath}:${fetchCall.typeCheatLine || fetchCall.fetchLine}: casts response with 'as any'/'as unknown' at network boundary`,
+          `AST resolution: ${confidence} confidence (explicit type assertion syntax node)`,
         ],
         title: "Type assertion `as any` at network boundary",
         explanation: `${sourceNode.label} casts response to \`any\`, masking contract drift.`,
@@ -263,14 +327,19 @@ export function scanRepository(
     if (targetRoute.swallowedErrors.length > 0) {
       handledSwallowedErrorRoutes.add(targetRoute.node.id);
       for (const err of targetRoute.swallowedErrors) {
+        const confidence = calculateDynamicConfidence({
+          code: "SWALLOWED_ERROR",
+          hasExplicitStatus: typeof err.status === "number",
+        });
         const issue: DiagnosticIssue = {
           id: `issue:swallowed-error-${targetRoute.node.id}-${err.line}`,
           wireId,
           severity: "SUSPICIOUS",
           code: "SWALLOWED_ERROR",
-          confidence: "HIGH",
+          confidence,
           evidence: [
             `${targetRoute.node.filePath}:${err.line}: catch block returns HTTP ${err.status} instead of error status`,
+            `AST resolution: ${confidence} confidence (explicit status literal in catch return)`,
           ],
           title: `Swallowed error in catch block returns HTTP ${err.status}`,
           explanation: `Route handler ${targetRoute.node.label} catches errors and returns HTTP ${err.status} instead of a 4xx/5xx status code.`,
@@ -288,14 +357,16 @@ export function scanRepository(
 
     // Optional Check: MISSING_ERROR_HANDLING
     if (options?.detectMissingErrorHandling && !fetchCall.hasErrorHandling) {
+      const confidence = calculateDynamicConfidence({ code: "MISSING_ERROR_HANDLING" });
       const issue: DiagnosticIssue = {
         id: `issue:missing-error-handling-${sourceNode.id}-${targetRoute.node.id}`,
         wireId,
         severity: "SUSPICIOUS",
         code: "MISSING_ERROR_HANDLING",
-        confidence: "MEDIUM",
+        confidence,
         evidence: [
           `${sourceNode.filePath}:${fetchCall.fetchLine}: fetch invocation not wrapped in try/catch or status check`,
+          `AST resolution: ${confidence} confidence (unwrapped fetch call)`,
         ],
         title: `Missing error handling for ${fetchCall.method} ${fetchCall.url}`,
         explanation: `${sourceNode.label} executes fetch without wrapping in a try/catch block or checking res.ok.`,
@@ -322,12 +393,35 @@ export function scanRepository(
       const hasBackendPayload =
         (targetRoute.node.returnsPayload && Object.keys(targetRoute.node.returnsPayload).length > 0) ||
         (targetRoute.node.expectsPayload && Object.keys(targetRoute.node.expectsPayload).length > 0);
-      const hasFrontendPayload =
-        fetchCall.expectsResponseFields.length > 0 ||
-        (fetchCall.sentBodyFields && fetchCall.sentBodyFields.length > 0);
-      const hasSufficientEvidence = hasBackendPayload || hasFrontendPayload;
 
-      wireStatus = hasSufficientEvidence ? "VERIFIED" : "UNKNOWN";
+      // Verified request body contract
+      const hasVerifiedRequestBody =
+        Boolean(
+          targetRoute.node.expectsPayload &&
+          Object.keys(targetRoute.node.expectsPayload).length > 0 &&
+          fetchCall.sentBodyFields &&
+          fetchCall.sentBodyFields.length > 0 &&
+          !wireIssues.some((i) => i.code === "REQUEST_MISMATCH")
+        );
+
+      // Verified response body contract
+      const hasVerifiedResponseBody =
+        Boolean(
+          targetRoute.node.returnsPayload &&
+          Object.keys(targetRoute.node.returnsPayload).length > 0 &&
+          !wireIssues.some((i) => i.code === "FIELD_MISMATCH")
+        );
+
+      // Lacks backend evidence if backend has 0 payload contract, or frontend expects response fields without verified payload on either side
+      const lacksBackendEvidence =
+        !hasBackendPayload ||
+        (fetchCall.expectsResponseFields.length > 0 && !hasVerifiedResponseBody && !hasVerifiedRequestBody);
+
+      if (lacksBackendEvidence) {
+        wireStatus = "UNKNOWN";
+      } else {
+        wireStatus = "VERIFIED";
+      }
     }
 
     wires.push({
@@ -362,15 +456,21 @@ export function scanRepository(
             (col) => col.replace(/_/g, "").toLowerCase() === cleanKey
           );
 
+          const confidence = calculateDynamicConfidence({
+            code: "SCHEMA_DRIFT",
+            hasExplicitSchema: true,
+          });
+
           const issue: DiagnosticIssue = {
             id: `issue:schema-drift-${route.node.id}-${key}`,
             wireId,
             severity: "BROKEN",
             code: "SCHEMA_DRIFT",
-            confidence: "HIGH",
+            confidence,
             evidence: [
               `${route.node.filePath}:${interaction.line}: writes database key '${key}'`,
               `${modelInfo.filePath}:${modelInfo.line}: Prisma model '${modelInfo.modelName}' defines columns [${Object.keys(modelInfo.columns).join(", ")}]`,
+              `AST resolution: ${confidence} confidence (explicit Prisma schema comparison)`,
             ],
             title: `Column mismatch: ${key} vs ${matchedCol || "unknown"}`,
             explanation: `Backend route writes \`${key}\`, but Prisma model \`${modelInfo.modelName}\` defines \`${matchedCol || "unknown"}\`.`,
@@ -488,15 +588,21 @@ export function scanRepository(
             (c) => c.replace(/_/g, "").toLowerCase() === cleanKey
           );
 
+          const confidence = calculateDynamicConfidence({
+            code: "SCHEMA_DRIFT",
+            hasExplicitSchema: !!modelInfo,
+          });
+
           const issue: DiagnosticIssue = {
             id: `issue:schema-drift-${sourceNode.id}-${targetDbNode.id}-${col}`,
             wireId,
             severity: "BROKEN",
             code: "SCHEMA_DRIFT",
-            confidence: "HIGH",
+            confidence,
             evidence: [
               `${interaction.sourceFile}:${interaction.line}: writes column '${col}'`,
               `${modelInfo.filePath}:${modelInfo.line}: model '${modelInfo.modelName}' defines columns [${Object.keys(modelInfo.columns).join(", ")}]`,
+              `AST resolution: ${confidence} confidence (database column comparison against schema)`,
             ],
             title: `Column mismatch: ${col} vs ${matchedCol || "unknown"}`,
             explanation: `${sourceNode.label} writes \`${col}\`, but model \`${modelInfo.modelName}\` defines \`${matchedCol || "unknown"}\`.`,
@@ -520,14 +626,16 @@ export function scanRepository(
     if (matchingRoute && matchingRoute.uncheckedDbErrors.length > 0) {
       for (const err of matchingRoute.uncheckedDbErrors) {
         if (err.table.toLowerCase() === interaction.table.toLowerCase()) {
+          const confidence = calculateDynamicConfidence({ code: "UNCHECKED_DB_ERROR" });
           const issue: DiagnosticIssue = {
             id: `issue:unchecked-db-error-${sourceNode.id}-${err.table}-${err.line}`,
             wireId,
             severity: "SUSPICIOUS",
             code: "UNCHECKED_DB_ERROR",
-            confidence: "HIGH",
+            confidence,
             evidence: [
               `${sourceNode.filePath}:${err.line}: query on table '${err.table}' does not check or destructure { error }`,
+              `AST resolution: ${confidence} confidence (unhandled query response tuple)`,
             ],
             title: `Unchecked Supabase query error on ${err.table}`,
             explanation: `${sourceNode.label} calls supabase.from("${err.table}").${err.operation}(...) without destructuring or checking \`{ error }\`.`,
@@ -624,15 +732,17 @@ export function scanRepository(
         }
 
         const issueId = `issue:env-drift-${access.nodeId}-${access.key}-${access.line}`;
+        const confidence = calculateDynamicConfidence({ code: "ENV_DRIFT" });
         const issue: DiagnosticIssue = {
           id: issueId,
           wireId,
           severity: "SUSPICIOUS",
           code: "ENV_DRIFT",
-          confidence: "HIGH",
+          confidence,
           evidence: [
             `${access.filePath}:${access.line}: references process.env.${access.key}`,
             `${envResult.envPath}:1: variable ${access.key} not declared in .env.example`,
+            `AST resolution: ${confidence} confidence (process.env property access missing from template)`,
           ],
           title: `Environment variable drift: ${access.key} not in .env.example`,
           explanation: `${node?.label || access.nodeId} references process.env.${access.key}, which is not declared in .env.example.`,
@@ -658,15 +768,17 @@ export function scanRepository(
     for (const route of backendResult.routes) {
       if (route.node.kind === "BACKEND_ROUTE" && !calledBackendRouteIds.has(route.node.id)) {
         const wireId = `wire:dead-endpoint->${route.node.id}`;
+        const confidence = calculateDynamicConfidence({ code: "DEAD_ENDPOINT" });
         const issue: DiagnosticIssue = {
           id: `issue:dead-endpoint-${route.node.id}`,
           wireId,
           severity: "SUSPICIOUS",
           code: "DEAD_ENDPOINT",
-          confidence: "MEDIUM",
+          confidence,
           evidence: [
             `${route.node.filePath}:${route.node.line}: route handler defined for ${route.node.label}`,
             `No frontend caller found matching route path ${route.node.routePath}`,
+            `AST resolution: ${confidence} confidence (zero frontend AST call references)`,
           ],
           title: `Dead route endpoint: ${route.node.label} has 0 callers`,
           explanation: `Route handler ${route.node.label} exists in backend but is not called by any discovered frontend component.`,

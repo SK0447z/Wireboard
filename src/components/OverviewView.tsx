@@ -148,8 +148,8 @@ export function OverviewView({
         )}
       </div>
 
-      {/* Top 4 Telemetry Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      {/* Top 5 Telemetry Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="p-3.5 rounded-[4px] bg-[#0c0c0e] border border-white/[0.07] space-y-1">
           <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
             Contract Integrity Score
@@ -209,6 +209,19 @@ export function OverviewView({
           </div>
           <div className="text-[11px] font-mono text-zinc-500">
             Missing endpoints & key mismatches
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-[4px] bg-[#0c0c0e] border border-white/[0.07] space-y-1">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 flex items-center justify-between">
+            <span>Coverage & Unknown</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#71717a]" />
+          </div>
+          <div className="text-2xl font-bold font-mono tabular-nums text-zinc-200">
+            {graph.summary.coverage?.coveragePercent ?? (graph.wires.length > 0 ? 100 : 0)}%
+          </div>
+          <div className="text-[11px] font-mono text-zinc-500">
+            {graph.summary.unknownWires ?? 0} unknown wire(s)
           </div>
         </div>
       </div>

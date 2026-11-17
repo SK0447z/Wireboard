@@ -52,6 +52,53 @@ function parseIPv6Blocks(ip: string): number[] | null {
 }
 
 /**
+ * Extracts an embedded IPv4 address string from IPv6 blocks if present
+ * (IPv4-compatible ::x.x.x.x, IPv4-mapped ::ffff:x.x.x.x, SIIT ::ffff:0:x.x.x.x, or NAT64 64:ff9b::/96).
+ */
+function extractEmbeddedIPv4(blocks: number[]): string | null {
+  // Check if blocks[6] and blocks[7] represent an embedded IPv4:
+  // 1. IPv4-compatible IPv6 (::x.x.x.x): blocks[0..5] are 0
+  const isCompatible = blocks.slice(0, 6).every((b) => b === 0);
+
+  // 2. IPv4-mapped IPv6 (::ffff:x.x.x.x): blocks[0..4] are 0, blocks[5] is 0xffff
+  const isMapped =
+    blocks[0] === 0 &&
+    blocks[1] === 0 &&
+    blocks[2] === 0 &&
+    blocks[3] === 0 &&
+    blocks[4] === 0 &&
+    blocks[5] === 0xffff;
+
+  // 3. SIIT IPv4-translated (::ffff:0:x.x.x.x): blocks[0..3] are 0, blocks[4] is 0xffff, blocks[5] is 0
+  const isSiit =
+    blocks[0] === 0 &&
+    blocks[1] === 0 &&
+    blocks[2] === 0 &&
+    blocks[3] === 0 &&
+    blocks[4] === 0xffff &&
+    blocks[5] === 0;
+
+  // 4. Well-Known Prefix NAT64 (64:ff9b::/96): blocks[0] is 0x64, blocks[1] is 0xff9b, blocks[2..5] are 0
+  const isNat64 =
+    blocks[0] === 0x0064 &&
+    blocks[1] === 0xff9b &&
+    blocks[2] === 0 &&
+    blocks[3] === 0 &&
+    blocks[4] === 0 &&
+    blocks[5] === 0;
+
+  if (isCompatible || isMapped || isSiit || isNat64) {
+    const v4_0 = (blocks[6] >> 8) & 0xff;
+    const v4_1 = blocks[6] & 0xff;
+    const v4_2 = (blocks[7] >> 8) & 0xff;
+    const v4_3 = blocks[7] & 0xff;
+    return `${v4_0}.${v4_1}.${v4_2}.${v4_3}`;
+  }
+
+  return null;
+}
+
+/**
  * Validates an IP address against forbidden SSRF ranges.
  */
 export function isIpBlocked(
@@ -137,25 +184,15 @@ export function isIpBlocked(
     // Unconditional block: Multicast ff00::/8 (0xff00 - 0xffff)
     if (blocks[0] >= 0xff00 && blocks[0] <= 0xffff) return true;
 
-    // IPv4-mapped IPv6 (::ffff:x.x.x.x)
-    if (
-      blocks[0] === 0 &&
-      blocks[1] === 0 &&
-      blocks[2] === 0 &&
-      blocks[3] === 0 &&
-      blocks[4] === 0 &&
-      blocks[5] === 0xffff
-    ) {
-      const v4_0 = blocks[6] >> 8;
-      const v4_1 = blocks[6] & 0xff;
-      const v4_2 = blocks[7] >> 8;
-      const v4_3 = blocks[7] & 0xff;
-      return isIpBlocked(`${v4_0}.${v4_1}.${v4_2}.${v4_3}`, options);
-    }
-
     // Loopback ::1
     if (blocks.slice(0, 7).every((b) => b === 0) && blocks[7] === 1) {
       return !allowLocal;
+    }
+
+    // Check embedded/mapped IPv4 addresses (IPv4-compatible, IPv4-mapped, SIIT, NAT64)
+    const embeddedV4 = extractEmbeddedIPv4(blocks);
+    if (embeddedV4) {
+      return isIpBlocked(embeddedV4, options);
     }
 
     // Unique Local Address fc00::/7 (0xfc00 - 0xfdff)
@@ -200,7 +237,8 @@ export async function validateReplayUrl(
     return { valid: false, error: "Credentials in URL are strictly forbidden" };
   }
 
-  const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  // Normalize hostname: lowercase, remove IPv6 brackets and trailing DNS dots
+  const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.+$/, "");
 
   // Unconditional domain block: Google Cloud metadata
   if (
@@ -278,12 +316,14 @@ export function validateScanPath(
 
   const tempScansDir = path.join(os.tmpdir(), "wireboard-scans");
   let canonicalTemp: string | null = null;
-  if (fs.existsSync(tempScansDir)) {
-    try {
-      canonicalTemp = fs.realpathSync(tempScansDir);
-    } catch {
-      canonicalTemp = path.resolve(tempScansDir);
-    }
+  try {
+    const realTmp = fs.existsSync(os.tmpdir()) ? fs.realpathSync(os.tmpdir()) : os.tmpdir();
+    const resolvedTempScans = path.join(realTmp, "wireboard-scans");
+    canonicalTemp = fs.existsSync(resolvedTempScans)
+      ? fs.realpathSync(resolvedTempScans)
+      : resolvedTempScans;
+  } catch {
+    canonicalTemp = path.resolve(tempScansDir);
   }
 
   const isAllowedRoot = (target: string) => {
@@ -334,6 +374,24 @@ export function validateScanPath(
     };
   }
 
+  // 4. Ensure target is a directory, not a file
+  try {
+    const stat = fs.statSync(canonicalCandidate);
+    if (!stat.isDirectory()) {
+      return {
+        valid: false,
+        error: `Path is not a directory: ${requestedPath}`,
+        status: 400,
+      };
+    }
+  } catch {
+    return {
+      valid: false,
+      error: `Failed to inspect directory: ${requestedPath}`,
+      status: 400,
+    };
+  }
+
   return { valid: true, resolvedPath: canonicalCandidate };
 }
 
@@ -341,11 +399,14 @@ export function validateScanPath(
  * Validates GitHub owner and repo strings against strict identifier rules.
  */
 export function validateGitHubRepo(owner: string, repo: string): boolean {
+  if (!owner || !repo) return false;
   if (
     owner === "." ||
     owner === ".." ||
     repo === "." ||
     repo === ".." ||
+    owner.startsWith("-") ||
+    repo.startsWith("-") ||
     owner.includes("/") ||
     owner.includes("\\") ||
     repo.includes("/") ||

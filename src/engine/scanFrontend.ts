@@ -415,7 +415,7 @@ export function scanFrontendComponents(
       }
     }
 
-    const isGenericRouter = /^(page|layout|index)\.[tj]sx$/.test(baseName);
+    const isGenericRouter = /^(page|layout|index)\.[tj]sx?$/.test(baseName);
     if (isGenericRouter) {
       const dirName = path.dirname(relPath);
       const parentFolder = dirName === "." || dirName === "" ? "" : path.basename(dirName);

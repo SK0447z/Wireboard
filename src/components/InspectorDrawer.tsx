@@ -165,6 +165,22 @@ export function InspectorDrawer({
                   </>
                 )}
               </div>
+
+              {activeIssue.evidence && activeIssue.evidence.length > 0 && (
+                <div className="pt-2 border-t border-white/[0.04] space-y-1">
+                  <div className="text-[9px] font-mono uppercase tracking-wider text-zinc-500">
+                    AST Evidence & Facts
+                  </div>
+                  <ul className="space-y-1 font-mono text-[10.5px] text-zinc-300">
+                    {activeIssue.evidence.map((ev, i) => (
+                      <li key={i} className="flex items-start gap-1.5 leading-tight">
+                        <span className="text-zinc-600 select-none">•</span>
+                        <span className="break-all">{ev}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             {/* Section 2: Real Source Code Snippets */}
@@ -290,14 +306,34 @@ export function InspectorDrawer({
           </div>
         )}
 
-        {/* CASE 2: Verified Wire Selected */}
+        {/* CASE 2: Wire Selected */}
         {!activeIssue && selectedWire && (
           <div className="divide-y divide-white/[0.06]">
             <div className="px-4 py-3.5 space-y-2">
               <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-                <span className="font-mono text-[11px] font-semibold text-emerald-400">
-                  VERIFIED WIRE
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    selectedWire.status === "BROKEN"
+                      ? "bg-[#EF4444]"
+                      : selectedWire.status === "SUSPICIOUS" || selectedWire.status === "WARNING"
+                      ? "bg-[#F59E0B]"
+                      : selectedWire.status === "UNKNOWN"
+                      ? "bg-[#71717a]"
+                      : "bg-[#10B981]"
+                  }`}
+                />
+                <span
+                  className={`font-mono text-[11px] font-semibold ${
+                    selectedWire.status === "BROKEN"
+                      ? "text-rose-400"
+                      : selectedWire.status === "SUSPICIOUS" || selectedWire.status === "WARNING"
+                      ? "text-amber-400"
+                      : selectedWire.status === "UNKNOWN"
+                      ? "text-zinc-400"
+                      : "text-emerald-400"
+                  }`}
+                >
+                  {selectedWire.status} WIRE
                 </span>
                 <span className="font-mono text-[10px] text-zinc-500">
                   {selectedWire.id}
@@ -305,10 +341,22 @@ export function InspectorDrawer({
               </div>
 
               <h3 className="text-[13px] font-medium text-zinc-100">
-                Integration Contract Verified
+                {selectedWire.status === "UNKNOWN"
+                  ? "Unverified Integration Wire"
+                  : selectedWire.status === "BROKEN"
+                  ? "Broken Integration Contract"
+                  : selectedWire.status === "SUSPICIOUS" || selectedWire.status === "WARNING"
+                  ? "Potential Integration Risk"
+                  : "Integration Contract Verified"}
               </h3>
               <p className="text-[12px] text-zinc-400 leading-relaxed">
-                Matching route signatures, synchronized database column types, and zero property mismatches.
+                {selectedWire.status === "UNKNOWN"
+                  ? "Static analysis lacks payload contract evidence on both ends to prove compatibility. Wire styled in neutral dashed zinc."
+                  : selectedWire.status === "BROKEN"
+                  ? "Contract mismatches or missing endpoints detected along this integration wire."
+                  : selectedWire.status === "SUSPICIOUS" || selectedWire.status === "WARNING"
+                  ? "Type-cheats or unhandled error boundaries present along this wire."
+                  : "Matching route signatures, synchronized database column types, and zero property mismatches."}
               </p>
 
               <div className="border border-white/[0.07] rounded-[4px] bg-[#08080a] divide-y divide-white/[0.04] font-mono text-[11px]">
@@ -411,8 +459,10 @@ export function InspectorDrawer({
                           className={`w-1.5 h-1.5 rounded-full ${
                             w.status === "BROKEN"
                               ? "bg-[#EF4444]"
-                              : w.status === "SUSPICIOUS"
+                              : w.status === "SUSPICIOUS" || w.status === "WARNING"
                               ? "bg-[#F59E0B]"
+                              : w.status === "UNKNOWN"
+                              ? "bg-[#71717a]"
                               : "bg-[#10B981]"
                           }`}
                         />

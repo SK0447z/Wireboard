@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
+import { validateGitHubRepo } from "./security";
 
 export function parseGitHubUrl(input: string): { owner: string; repo: string } | null {
   const trimmed = input.trim();
@@ -11,11 +12,7 @@ export function parseGitHubUrl(input: string): { owner: string; repo: string } |
   if (!match) return null;
   const owner = match[1];
   const repo = match[2];
-  if (owner === "." || owner === ".." || repo === "." || repo === "..") {
-    return null;
-  }
-  const validName = /^[a-zA-Z0-9._-]+$/;
-  if (!validName.test(owner) || !validName.test(repo)) {
+  if (!validateGitHubRepo(owner, repo)) {
     return null;
   }
   return { owner, repo };

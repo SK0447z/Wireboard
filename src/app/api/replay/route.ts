@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     const response = await fetch(targetUrl, fetchOptions);
     const durationMs = Math.round(performance.now() - startTime);
 
-    // Enforce response body size cap (256KB)
+    // Enforce response body size cap (256KB) with safe streaming consumption
     const contentLength = response.headers?.get?.("content-length");
     if (contentLength && parseInt(contentLength, 10) > MAX_RESPONSE_BODY_SIZE) {
       return NextResponse.json(
@@ -104,12 +104,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const responseText = await response.text();
-    if (Buffer.byteLength(responseText, "utf8") > MAX_RESPONSE_BODY_SIZE) {
-      return NextResponse.json(
-        { error: "Response body exceeds maximum allowed size of 256KB" },
-        { status: 502 }
-      );
+    let responseText = "";
+    if (response.body && typeof response.body.getReader === "function") {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let totalBytes = 0;
+      const chunks: string[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          totalBytes += value.byteLength;
+          if (totalBytes > MAX_RESPONSE_BODY_SIZE) {
+            await reader.cancel();
+            return NextResponse.json(
+              { error: "Response body exceeds maximum allowed size of 256KB" },
+              { status: 502 }
+            );
+          }
+          chunks.push(decoder.decode(value, { stream: true }));
+        }
+      }
+      chunks.push(decoder.decode());
+      responseText = chunks.join("");
+    } else {
+      responseText = await response.text();
+      if (Buffer.byteLength(responseText, "utf8") > MAX_RESPONSE_BODY_SIZE) {
+        return NextResponse.json(
+          { error: "Response body exceeds maximum allowed size of 256KB" },
+          { status: 502 }
+        );
+      }
     }
 
     let parsedData: unknown;

@@ -62,6 +62,35 @@ export function WireSimulator({
 
   // Compute 4-step pipeline trace
   const pipelineSteps: PipelineStep[] = useMemo(() => {
+    if (relevantWire?.status === "UNKNOWN") {
+      return [
+        {
+          index: 1,
+          name: "Consumer Request Payload",
+          passed: true,
+          reason: "Request parameters recorded.",
+        },
+        {
+          index: 2,
+          name: "Producer / External Route",
+          passed: false,
+          reason: "Target lacks full AST contract schema in workspace.",
+        },
+        {
+          index: 3,
+          name: "Database Schema Check",
+          passed: true,
+          reason: "No downstream database interactions mapped.",
+        },
+        {
+          index: 4,
+          name: "Contract Verification",
+          passed: false,
+          reason: "Contract status is UNKNOWN due to missing type schema evidence.",
+        },
+      ];
+    }
+
     // 1. Consumer Request Payload
     const reqIssue = relevantIssues.find(
       (i) => i.code === "REQUEST_MISMATCH" || i.code === "ENV_DRIFT"

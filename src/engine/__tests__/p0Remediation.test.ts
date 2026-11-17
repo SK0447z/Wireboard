@@ -33,14 +33,21 @@ describe("Stage 1 (P0: Security & Core Correctness) Remediation Tests", () => {
     it("blocks cloud metadata IPs unconditionally", async () => {
       expect(isIpBlocked("169.254.169.254")).toBe(true);
       expect(isIpBlocked("fd00:ec2::254")).toBe(true);
+      expect(isIpBlocked("::169.254.169.254")).toBe(true); // IPv4-compatible IPv6
+      expect(isIpBlocked("::ffff:169.254.169.254")).toBe(true); // IPv4-mapped IPv6
+      expect(isIpBlocked("64:ff9b::169.254.169.254")).toBe(true); // NAT64 prefix
 
       const res1 = await validateReplayUrl("http://169.254.169.254/latest/meta-data");
       expect(res1.valid).toBe(false);
       expect(res1.error).toMatch(/blocked|forbidden|ssrf/i);
 
-      // Cloud metadata domain
+      // Cloud metadata domain (with and without trailing dot)
       const res2 = await validateReplayUrl("http://metadata.google.internal/computeMetadata/v1/");
       expect(res2.valid).toBe(false);
+
+      const resTrailingDot = await validateReplayUrl("http://metadata.google.internal./computeMetadata/v1/");
+      expect(resTrailingDot.valid).toBe(false);
+      expect(resTrailingDot.error).toMatch(/cloud metadata/i);
     });
 
     it("blocks non-HTTP protocols like file://, gopher://, ftp://", async () => {
@@ -106,6 +113,13 @@ describe("Stage 1 (P0: Security & Core Correctness) Remediation Tests", () => {
       expect(resTmp.valid).toBe(true);
     });
 
+    it("rejects non-directory file paths with 400 status", () => {
+      const res = validateScanPath("package.json");
+      expect(res.valid).toBe(false);
+      expect(res.status).toBe(400);
+      expect(res.error).toMatch(/not a directory/i);
+    });
+
     it("strictly validates GitHub owner and repo rejecting directory traversal sequences", () => {
       expect(validateGitHubRepo("owner", "repo")).toBe(true);
       expect(validateGitHubRepo("owner", "repo.name-1_2")).toBe(true);
@@ -113,6 +127,8 @@ describe("Stage 1 (P0: Security & Core Correctness) Remediation Tests", () => {
       expect(validateGitHubRepo("..", "repo")).toBe(false);
       expect(validateGitHubRepo("owner", "..")).toBe(false);
       expect(validateGitHubRepo("owner", "repo;rm -rf /")).toBe(false);
+      expect(validateGitHubRepo("-owner", "repo")).toBe(false);
+      expect(validateGitHubRepo("owner", "-repo")).toBe(false);
     });
   });
 
@@ -228,6 +244,93 @@ describe("Stage 1 (P0: Security & Core Correctness) Remediation Tests", () => {
         // Each evidence item should cite line or contract facts
         expect(issue.evidence[0]).toMatch(/\.(tsx|ts|prisma|env):\d+|route|payload|catch/i);
         expect(["HIGH", "MEDIUM", "LOW"]).toContain(issue.confidence);
+      }
+    });
+
+    it("catches REQUEST_MISMATCH when frontend calls route with missing/empty body", () => {
+      const tempDir = path.join(os.tmpdir(), "wb-missing-body-test-" + Date.now());
+      const feDir = path.join(tempDir, "components");
+      const beDir = path.join(tempDir, "app/api/auth");
+
+      fs.mkdirSync(feDir, { recursive: true });
+      fs.mkdirSync(beDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(feDir, "LoginButton.tsx"),
+        `
+        import React from "react";
+        export function LoginButton() {
+          async function login() {
+            // Sends POST without body
+            await fetch("/api/auth", { method: "POST" });
+          }
+          return <button onClick={login}>Login</button>;
+        }
+        `
+      );
+
+      fs.writeFileSync(
+        path.join(beDir, "route.ts"),
+        `
+        import { NextResponse } from "next/server";
+        export async function POST(req: Request) {
+          const { email, password } = await req.json();
+          return NextResponse.json({ ok: true });
+        }
+        `
+      );
+
+      try {
+        const graph = scanRepository(tempDir);
+        expect(graph.wires).toHaveLength(1);
+        const wire = graph.wires[0];
+        expect(wire.status).toBe("BROKEN");
+        expect(wire.issues.some((i) => i.code === "REQUEST_MISMATCH")).toBe(true);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("marks wire as UNKNOWN when frontend expects response properties but backend returns void", () => {
+      const tempDir = path.join(os.tmpdir(), "wb-void-be-test-" + Date.now());
+      const feDir = path.join(tempDir, "components");
+      const beDir = path.join(tempDir, "app/api/status");
+
+      fs.mkdirSync(feDir, { recursive: true });
+      fs.mkdirSync(beDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(feDir, "StatusWidget.tsx"),
+        `
+        import React from "react";
+        export function StatusWidget() {
+          async function check() {
+            const res = await fetch("/api/status");
+            const data = await res.json();
+            console.log(data.status_code, data.latency);
+          }
+          return <button onClick={check}>Check</button>;
+        }
+        `
+      );
+
+      fs.writeFileSync(
+        path.join(beDir, "route.ts"),
+        `
+        export async function GET() {
+          return new Response(null, { status: 204 });
+        }
+        `
+      );
+
+      try {
+        const graph = scanRepository(tempDir);
+        expect(graph.wires).toHaveLength(1);
+        const wire = graph.wires[0];
+        // Must be UNKNOWN because backend provides no payload schema evidence
+        expect(wire.status).toBe("UNKNOWN");
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
       }
     });
   });
